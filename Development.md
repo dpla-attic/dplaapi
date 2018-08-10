@@ -31,7 +31,7 @@ your shell.)
 
 ### Current Dependencies
 
-* Python 3.6.6  (See `Dockerfile`, `.python-version`)
+* Python 3.6.6  (See `Dockerfile`, `.python-version`, and `.travis.yml`)
 * Debian "Stretch" (Debian 9) for the Docker image (See `Dockerfile`). We're
 using the latest official Python Docker image, which uses this distribution.
 * Python packages indicated in `setup.py` and `requirements.txt`
@@ -71,7 +71,8 @@ one of those needs to be upgraded, change the version selector in
 `install_requires` in `setup.py`. Go through the process described above for
 upgrading packages.
 
-Check `Dockerfile` and `.python-version` if you've changed Python versions.
+Check `Dockerfile`, `.python-version`, and `.travis.yml` if you've changed
+Python versions.
 
 
 ## Releases and Branching

@@ -16,7 +16,7 @@ Quick walkthrough
 
 ```
 $ cd /path/to/dplaapi
-$ docker build -t dplaapi:latest .
+$ docker build -t dplaapi:dev .
 $ docker run --rm -d -p 8000:8000 --name dplaapi dplaapi:dev
 $ docker container logs -f dplaapi
 ```
