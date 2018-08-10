@@ -34,8 +34,19 @@ setup(name='dplaapi',
       packages=find_packages(),
       scripts=['bin/devapi'],
       install_requires=[
-        'apistar>=0.5,<0.6',
-        'uvicorn==0.1.1',  # log formatting is broken w higher versions
-        'aiofiles'         # required by ASyncApp but we don't use static files
+          'apistar>=0.5<0.6',
+          # uvicorn is pinned to 0.1.1 because log formatting is broken in
+          # higher versions
+          'uvicorn==0.1.1',
+          # aiofiles is required by ASyncApp, even though we have no static
+          # files
+          'aiofiles~=0.3'
       ],
+      extras_require={
+        'dev': [
+          'pytest~=3.7.1',
+          'coverage~=4.5.1',
+          'flake8~=3.5.0'
+        ]
+      },
       license='MIT')
