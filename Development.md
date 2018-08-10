@@ -87,7 +87,8 @@ and feature branches.
 number.
 1. If necessary, update the copyright year in `LICENSE`.
 1. Commit those changes to `master`
-1. ```
+1. Tag, merge, and `git push` as follows:
+```
 $ # on the master branch ...
 $ git tag -s -m 'Release X.Y.N' X.Y.N
 $ git checkout latest
