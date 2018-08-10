@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+
+"""
+devapi
+~~~~~~
+
+Run the server in development mode.
+
+This doesn't work yet because apistar.ASyncApp has a bug, which is supposed
+to be fixed by https://github.com/encode/apistar/pull/501 -- which hasn't
+been merged yet.
+
+Until then, we have to run with uvicorn:
+
+$ uvicorn dplaapi:app
+"""
+
+from dplaapi import app
+import sys
+
+print(__doc__, file=sys.stderr)
+exit(1)
+
+app.serve('127.0.0.1', 8000, debug=True)
