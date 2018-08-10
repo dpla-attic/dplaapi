@@ -11,7 +11,6 @@ __version__ = '0.1.0'
 import logging
 from apistar import ASyncApp
 from . import routes
-from . import event_hooks
 
 logging.basicConfig(level=logging.DEBUG,
                     format='[%(asctime)-15s] [%(process)d] [%(levelname)s] '
@@ -19,8 +18,8 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S %z')
 log = logging.getLogger(__name__)
 
-ES_BASE='http://internal-search-lbal-prod-es6-673529119.us-east-1.elb.' \
-        'amazonaws.com:9200/dpla_alias'
+ES_BASE = 'http://internal-search-lbal-prod-es6-673529119.us-east-1.elb.' \
+          'amazonaws.com:9200/dpla_alias'
 
 
 # FIXME:

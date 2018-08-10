@@ -18,6 +18,7 @@ async def index(request: apistar.http.Request) -> dict:
     data = headers
     return apistar.http.JSONResponse(data, status_code=301, headers=headers)
 
+
 async def request_info(request: apistar.http.Request) -> dict:
     """Get information about the request"""
     return {
@@ -26,6 +27,7 @@ async def request_info(request: apistar.http.Request) -> dict:
         'headers': dict(request.headers),
         'body': request.body.decode('utf-8')
     }
+
 
 async def search(term: str, fail: bool = False) -> dict:
     """Get a search result"""
@@ -48,6 +50,6 @@ async def search(term: str, fail: bool = False) -> dict:
         log.exception('Unexpected error')
         raise ServerError({'message': 'Unexpected error'})
 
+
 async def bad_get_path() -> dict:
     raise apistar.exceptions.NotFound({'message': 'Not Found'})
-
