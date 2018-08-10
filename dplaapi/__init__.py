@@ -7,7 +7,7 @@ A web API for querying the Digital Public Library of America's metadata
 
 __version__ = '0.1.0'
 
-
+import os
 import logging
 from apistar import ASyncApp
 from . import routes
@@ -18,8 +18,9 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S %z')
 log = logging.getLogger(__name__)
 
-ES_BASE = 'http://internal-search-lbal-prod-es6-673529119.us-east-1.elb.' \
-          'amazonaws.com:9200/dpla_alias'
+ES_BASE = os.getenv('ES_BASE')
+if ES_BASE is None:
+    raise Exception('ES_BASE env var is not defined')
 
 
 # FIXME:
