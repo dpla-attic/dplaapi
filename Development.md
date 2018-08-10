@@ -22,7 +22,7 @@ you can easily `rm -r venv` to start over from scratch and do `virtualenv venv`
 again to rebuild it.
 1. `. venv/bin/activate`  (Or `source venv/bin/activate` if `.` doesn't work in
 your shell.)
-1. `pip install -r requirements.txt`
+1. `pip install -e .[dev]`
 1. Run
   * development: `devapi`
   * production: `uvicorn dplaapi:app`
