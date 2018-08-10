@@ -45,7 +45,6 @@ setup(name='dplaapi',
       extras_require={
         'dev': [
           'pytest~=3.7.1',
-          'coverage~=4.5.1',
           'flake8~=3.5.0'
         ]
       },
