@@ -74,11 +74,26 @@ upgrading packages.
 Check `Dockerfile` and `.python-version` if you've changed Python versions.
 
 
-## Releases
+## Releases and Branching
+
+See https://digitalpubliclibraryofamerica.atlassian.net/wiki/spaces/TECH/pages/87037285/Branching+and+Release+Model
+
+We follow the OneFlow branching model described there, with `master`, `latest`,
+and feature branches.
+
+### Cutting a release:
 
 1. Edit `dplaapi/__init__.py` and update `__version__` with the new version
 number.
 1. If necessary, update the copyright year in `LICENSE`.
+1. Commit those changes to `master`
+1. ```
+$ # on the master branch ...
+$ git tag -s -m 'Release X.Y.N' X.Y.N
+$ git checkout latest
+$ git merge --ff-only X.Y.N
+$ git push master X.Y.N latest
+```
 
 ## Workflow
 
@@ -100,3 +115,13 @@ want to see how they work. The server will reload if you modify code.
 It is usually best to use the test suite to iterate over changes you're making
 to project files. The code should be structured such that it's easy to run a
 unit test for the module or function that you're editing.
+
+## Testing
+
+Run these tests before submitting code for review, and especially before merging
+to `master`:
+
+```
+$ pytest
+$ flake8 dplaapi
+```
