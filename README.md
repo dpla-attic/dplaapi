@@ -3,7 +3,7 @@
 A web API for querying the
 [Digital Public Library of America's](https://dp.la/) metadata.
 
-[![Build Status](https://travis-ci.org/dpla/dplaapi.svg?branch=stable)](https://travis-ci.org/dpla/dplaapi)
+[![Build Status](https://travis-ci.org/dpla/dplaapi.svg?branch=master)](https://travis-ci.org/dpla/dplaapi)
 
 ## Installation and Execution
 
@@ -67,3 +67,7 @@ See [Development.md](./Development.md)
 ## License
 
 See [LICENSE](./LICENSE)
+
+## TODO / FIXME
+
+* Change the Travis CI "Build Status" link when we have a `stable` branch.
