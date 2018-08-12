@@ -7,3 +7,4 @@ env:
     - ES_BASE=http://example:9200/dpla_alias
 script:
     - pytest
+    - flake8 dplaapi
