@@ -25,7 +25,7 @@ your shell.)
 1. `pip install -e .[dev]`
 1. Run
   * ~~development: `devapi`~~ (Not working yet. See "Workflow" below.)
-  * production: `uvicorn dplaapi:app`
+  * production: `ES_BASE=<url> uvicorn dplaapi:app`
 
 ## Dependencies
 
@@ -109,7 +109,7 @@ $ uvicorn dplaapi:app    # run the app that you've installed with `setup.py`.
 ... or ...
 $ cd /path/to/dplaapi
 $ # run from the project directory ...
-$ PYTHONPATH='.' uvicorn --reload --log-level debug dplaapi:app
+$ PYTHONPATH=. uvicorn --reload --log-level debug dplaapi:app
 ```
 The second option works well if you're iterating over changes to the files and
 want to see how they work. The server will reload if you modify code.
