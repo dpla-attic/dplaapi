@@ -6,5 +6,6 @@ from . import handlers
 routes = [
     Route('/', method='GET', handler=handlers.index),
     Route('/req-info', method='GET', handler=handlers.request_info),
-    Route('/search', method='GET', handler=handlers.search)
+    Route('/search', method='GET', handler=handlers.search),
+    Route('/sysinfo', method='GET', handler=handlers.sysinfo)
 ]

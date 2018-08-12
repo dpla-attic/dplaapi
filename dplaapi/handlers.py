@@ -1,4 +1,5 @@
 
+import os
 import logging
 import requests
 import apistar
@@ -27,6 +28,18 @@ async def request_info(request: apistar.http.Request) -> dict:
         'headers': dict(request.headers),
         'body': request.body.decode('utf-8')
     }
+
+
+async def sysinfo() -> dict:
+    """Get system information"""
+    if os.getenv('DEBUG_SYSINFO'):
+        return {
+            'cpus': os.cpu_count(),
+            'pid': os.getpid(),
+            'ppid': os.getppid()
+        }
+    else:
+        raise apistar.exceptions.Forbidden()
 
 
 async def search(term: str, fail: bool = False) -> dict:
