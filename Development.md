@@ -24,7 +24,7 @@ again to rebuild it.
 your shell.)
 1. `pip install -e .[dev]`
 1. Run
-  * development: `devapi`
+  * ~~development: `devapi`~~ (Not working yet. See "Workflow" below.)
   * production: `uvicorn dplaapi:app`
 
 ## Dependencies
