@@ -12,7 +12,15 @@ import logging
 from apistar import ASyncApp
 from . import routes
 
-logging.basicConfig(level=logging.DEBUG,
+log_levels = {
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
+
+logging.basicConfig(level=log_levels[os.getenv('APP_LOG_LEVEL', 'debug')],
                     format='[%(asctime)-15s] [%(process)d] [%(levelname)s] '
                            '[%(module)s]: %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S %z')
