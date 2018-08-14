@@ -16,7 +16,7 @@ class ItemsQueryType(apistar.types.Type):
     q = apistar.validators.String(
         title='Search term',
         description='Search term',
-        min_length=4,
+        min_length=2,
         max_length=200,
         allow_null=True)
 
