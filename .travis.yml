@@ -6,4 +6,4 @@ install:
     - "pip install -e .[dev]"
 script:
     - pytest
-    - flake8 dplaapi
+    - flake8 dplaapi tests
