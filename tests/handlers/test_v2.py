@@ -2,11 +2,11 @@
 """Test dplaapi.handlers.v2"""
 
 import os
-os.environ['ES_BASE'] = 'x'
+os.environ['ES_BASE'] = 'x'  # prevent error importing dplaapi
 
-import pytest
-import requests
-from dplaapi.handlers import v2 as v2_handlers
+import pytest                                       # noqa: E402
+import requests                                     # noqa: E402
+from dplaapi.handlers import v2 as v2_handlers      # noqa: E402
 
 
 minimal_good_response = {
@@ -20,6 +20,7 @@ class MockGoodResponse():
     """Mock a good `requests.Response`"""
     def raise_for_status(self):
         pass
+
     def json(self):
         return minimal_good_response
 
