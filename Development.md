@@ -110,7 +110,7 @@ $ uvicorn dplaapi:app    # run the app that you've installed with `setup.py`.
 ... or ...
 $ cd /path/to/dplaapi
 $ # run from the project directory ...
-$ PYTHONPATH=. uvicorn --reload --log-level debug dplaapi:app
+$ PYTHONPATH=. ES_BASE=&lt;url&gt; uvicorn --reload --log-level debug dplaapi:app
 ```
 The second option works well if you're iterating over changes to the files and
 want to see how they work. The server will reload if you modify code.
