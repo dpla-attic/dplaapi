@@ -45,6 +45,7 @@ setup(name='dplaapi',
       extras_require={
         'dev': [
           'pytest~=3.7.1',
+          'pytest-asyncio~=0.9.0',
           'flake8~=3.5.0'
         ]
       },

@@ -1,3 +1,7 @@
+
+import os
+os.environ['ES_BASE'] = 'x'
+
 from apistar import test
 from dplaapi import app
 
