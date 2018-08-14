@@ -17,7 +17,7 @@ async def redir_to_recent_version() -> dict:
                                          headers=headers)
     except Exception as e:
         log.exception('Unexpected error')
-        raise ServerError({'message': 'Unexpected error'})
+        raise ServerError('Unexpected error')
 
 
 async def request_info(request: apistar.http.Request) -> dict:
