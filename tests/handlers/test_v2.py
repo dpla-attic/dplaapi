@@ -1,12 +1,9 @@
 
 """Test dplaapi.handlers.v2"""
 
-import os
-os.environ['ES_BASE'] = 'x'  # prevent error importing dplaapi
-
-import pytest                                       # noqa: E402
-import requests                                     # noqa: E402
-from dplaapi.handlers import v2 as v2_handlers      # noqa: E402
+import pytest
+import requests
+from dplaapi.handlers import v2 as v2_handlers
 
 
 minimal_good_response = {

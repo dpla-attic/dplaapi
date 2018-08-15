@@ -1,10 +1,7 @@
 
 """Test dplaapi.types"""
 
-import os
-os.environ['ES_BASE'] = 'x'  # prevent error importing dplaapi
-
-from dplaapi import types    # noqa: E402
+from dplaapi import types
 
 
 def test_items_query_type_is_match_all_true():

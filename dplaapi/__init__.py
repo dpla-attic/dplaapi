@@ -28,7 +28,8 @@ log = logging.getLogger(__name__)
 
 ES_BASE = os.getenv('ES_BASE')
 if ES_BASE is None:
-    raise Exception('ES_BASE env var is not defined')
+    log.warning('ES_BASE env var is not defined. Elasticsearch queries will '
+                'not work!')
 
 
 # FIXME:

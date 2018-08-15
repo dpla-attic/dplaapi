@@ -1,9 +1,6 @@
 
-import os
 from apistar import test
-
-os.environ['ES_BASE'] = 'x'
-from dplaapi import app                 # noqa: E402
+from dplaapi import app
 
 
 client = test.TestClient(app)
