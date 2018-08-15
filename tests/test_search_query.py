@@ -9,9 +9,9 @@ def test_search_query_only_works_with_items_type():
     # ... For now. This will change if we implement collections queries.
     good_params = types.ItemsQueryType(q='test')
     bad_params = object()
-    good_sq = search_query.SearchQuery(good_params)  # no AssertionError here
+    search_query.SearchQuery(good_params)  # no AssertionError here
     with pytest.raises(AssertionError):
-        bad_sq = search_query.SearchQuery(bad_params)
+        search_query.SearchQuery(bad_params)
 
 
 def test_search_query_produces_match_all_for_no_query_terms():
