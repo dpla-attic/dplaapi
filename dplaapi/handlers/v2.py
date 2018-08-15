@@ -2,34 +2,21 @@
 import apistar
 import logging
 import requests
-from urllib.parse import quote_plus
-
 import dplaapi
 from dplaapi.exceptions import ServerError
-
+from dplaapi.search_query import SearchQuery
 
 log = logging.getLogger(__name__)
-
-
-class ItemsQueryType(apistar.types.Type):
-    """Parameter constraints for item searches"""
-    q = apistar.validators.String(
-        title='Search term',
-        description='Search term',
-        min_length=2,
-        max_length=200,
-        allow_null=True)
-
-    def is_match_all(self):
-        return not self.q
 
 
 async def items(q: str) -> dict:
     """Get "item" records"""
     try:
-        params = ItemsQueryType(q=q)
-        url = "%s/_search?q=%s" % (dplaapi.ES_BASE, quote_plus(params.q))
-        resp = requests.get(url)
+        params = dplaapi.types.ItemsQueryType(q=q)
+        sq = SearchQuery(params)
+        log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
+        resp = requests.post("%s/_search" % dplaapi.ES_BASE,
+                             json=sq.query)
         resp.raise_for_status()
         result = resp.json()
         return {'hits': result['hits']}
