@@ -7,3 +7,5 @@ install:
 script:
     - pytest
     - flake8 dplaapi tests
+    - coverage xml
+    - python-codacy-coverage -r coverage.xml

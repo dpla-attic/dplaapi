@@ -48,7 +48,8 @@ setup(name='dplaapi',
           'pytest-asyncio~=0.9.0',
           'pytest-cov~=2.5.1',
           'flake8~=3.5.0',
-          'coverage~=4.5.1'
+          'coverage~=4.5.1',
+          'codacy-coverage~=1.3.11'
         ]
       },
       license='MIT')
