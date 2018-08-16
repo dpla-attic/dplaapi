@@ -3,6 +3,7 @@ import apistar
 import logging
 import requests
 import dplaapi
+from dplaapi.types import ItemsQueryType
 import dplaapi.search_query
 from dplaapi.exceptions import ServerError
 from dplaapi.search_query import SearchQuery
@@ -13,7 +14,7 @@ log = logging.getLogger(__name__)
 async def items(params: apistar.http.QueryParams) -> dict:
     """Get "item" records"""
     try:
-        goodparams = dplaapi.types.ItemsQueryType({k: v for [k, v] in params})
+        goodparams = ItemsQueryType({k: v for [k, v] in params})
         sq = SearchQuery(goodparams)
         log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
