@@ -46,7 +46,9 @@ setup(name='dplaapi',
         'dev': [
           'pytest~=3.7.1',
           'pytest-asyncio~=0.9.0',
-          'flake8~=3.5.0'
+          'pytest-cov~=2.5.1',
+          'flake8~=3.5.0',
+          'coverage~=4.5.1'
         ]
       },
       license='MIT')
