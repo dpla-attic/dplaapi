@@ -36,3 +36,9 @@ def test_items_query_type_passes_good_string_pattern():
     # Again, the field is supposed to be a URL
     assert types.ItemsQueryType({
               'rights': "http://rightsstatements.org/vocab/InC/1.0/"})
+
+
+def test_items_query_type_flunks_bad_param_name():
+    """ItemsQueryType flunks a bad querystring parameter name"""
+    with pytest.raises(ValidationError):
+        types.ItemsQueryType({'not_a_valid_param': 'x'})
