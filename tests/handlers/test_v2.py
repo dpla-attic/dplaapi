@@ -3,6 +3,7 @@
 
 import pytest
 import requests
+from apistar.http import QueryParams
 from dplaapi.handlers import v2 as v2_handlers
 
 
@@ -31,5 +32,6 @@ def mock_es_post_response_200(url, json):
 async def test_items_makes_es_request(monkeypatch):
     """items() makes an HTTP request to Elasticsearch"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    result = await v2_handlers.items(q='abcd')
+    params = QueryParams({'q': 'abcd'})
+    result = await v2_handlers.items(params)
     assert result == minimal_good_response

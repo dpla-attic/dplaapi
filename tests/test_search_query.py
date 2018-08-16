@@ -1,17 +1,6 @@
 """Test dplaapi.search_query"""
 
-import pytest
 from dplaapi import search_query, types
-
-
-def test_search_query_only_works_with_items_type():
-    """SearchQuery can only be instantiated with an ItemsQueryType argument"""
-    # ... For now. This will change if we implement collections queries.
-    good_params = types.ItemsQueryType(q='test')
-    bad_params = object()
-    search_query.SearchQuery(good_params)  # no AssertionError here
-    with pytest.raises(AssertionError):
-        search_query.SearchQuery(bad_params)
 
 
 def test_search_query_produces_match_all_for_no_query_terms():
@@ -23,14 +12,14 @@ def test_search_query_produces_match_all_for_no_query_terms():
 
 def test_search_query_produces_bool_query_for_query_terms():
     """SearchQuery produces 'bool' syntax if there are search terms"""
-    params = types.ItemsQueryType(q='test')
+    params = types.ItemsQueryType({'q': 'test'})
     sq = search_query.SearchQuery(params)
     assert 'bool' in sq.query['query']
 
 
 def test_query_string_clause_has_all_correct_fields_for_q_query():
     """A 'q=' query hits all of the correct fields w field boosts"""
-    params = types.ItemsQueryType(q='test')
+    params = types.ItemsQueryType({'q': 'test'})
     sq = search_query.SearchQuery(params)
     good_fields = [
         'sourceResource.title^2',
@@ -55,3 +44,17 @@ def test_query_string_clause_has_all_correct_fields_for_q_query():
     ]
     got_fields = sq.query['query']['bool']['must'][0]['query_string']['fields']
     assert got_fields.sort() == good_fields.sort()
+
+
+def test_q_fields_clause_items():
+    thedict = {'a': '1', 'b': None, 'c': '2'}
+    val = [x for x in search_query.q_fields_clause_items(thedict)]
+    assert val == ['a^1', 'c^2']
+
+
+def test_single_field_fields_clause_with_boost():
+    assert search_query.single_field_fields_clause('field', '1') == ['field^1']
+
+
+def test_single_field_fields_clause_no_boost():
+    assert search_query.single_field_fields_clause('field', None) == ['field']
