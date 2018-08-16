@@ -15,7 +15,7 @@ async def redir_to_recent_version() -> dict:
         data = headers
         return apistar.http.JSONResponse(data, status_code=301,
                                          headers=headers)
-    except Exception as e:
+    except Exception:
         log.exception('Unexpected error')
         raise ServerError('Unexpected error')
 
