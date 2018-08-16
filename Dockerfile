@@ -1,4 +1,5 @@
 FROM python:3.6.6-stretch
+LABEL maintainer="DPLA Tech Team <tech@dp.la"
 WORKDIR /opt/dplaapi
 COPY . /opt/dplaapi
 EXPOSE 8000
