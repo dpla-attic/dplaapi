@@ -1,7 +1,6 @@
 
 import logging
 import apistar
-from dplaapi.exceptions import ServerError
 
 
 log = logging.getLogger(__name__)
