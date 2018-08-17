@@ -27,7 +27,7 @@ logging.basicConfig(level=log_levels[os.getenv('APP_LOG_LEVEL', 'debug')],
 log = logging.getLogger(__name__)
 
 ES_BASE = os.getenv('ES_BASE')
-if ES_BASE is None:
+if not ES_BASE:
     log.warning('ES_BASE env var is not defined. Elasticsearch queries will '
                 'not work!')
 
