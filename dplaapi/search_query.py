@@ -104,13 +104,14 @@ class SearchQuery():
     The `query' attribute is a dict that represents the JSON of the
     Elasticsearch query.
 
-    - :attr:`query`
+    Instance attributes:
+    - query: The dict that will be serialized to JSON for the query.
     """
     def __init__(self, params: dict):
         """Initialize the SearchQuery
 
-        :param dplaapi.types.ItemsQueryType params:
-            The request's querystring parameters
+        Parameters:
+        - params: The request's querystring parameters
         """
         self.query = skel.copy()
         if not params.keys():
