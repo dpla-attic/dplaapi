@@ -46,8 +46,6 @@ The application recognizes the following environment variables.
 * `APP_LOG_LEVEL`: The logging level of the `dplaapi` application; as distinct
   from the middleware, e.g. `uvicorn`.  ("debug" | "info" | "warning" |
   "error" | "critical"). Defaults to "debug".
-* `DEBUG_SYSINFO`: For development and testing only. Enables the `/sysinfo`
-  endpoint if it is defined, e.g. `DEBUG_SYSINFO=1`
 
 Running natively (in development), you can pass the variables like this:
 ```
