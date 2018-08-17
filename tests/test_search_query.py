@@ -1,5 +1,7 @@
 """Test dplaapi.search_query"""
 
+import re
+from types import GeneratorType
 from dplaapi import search_query, types
 
 
@@ -46,10 +48,17 @@ def test_query_string_clause_has_all_correct_fields_for_q_query():
     assert got_fields.sort() == good_fields.sort()
 
 
-def test_q_fields_clause_items():
+def test_q_fields_clause_items_returns_correct_generator():
     thedict = {'a': '1', 'b': None, 'c': '2'}
-    val = [x for x in search_query.q_fields_clause_items(thedict)]
-    assert val == ['a^1', 'c^2']
+    generator = search_query.q_fields_clause_items(thedict)
+    assert isinstance(generator, GeneratorType)
+    for item in generator:
+        assert re.match(r'\w\^\d', item)
+
+
+def test_q_fields_clause_returns_array():
+    thedict = {'a': '1', 'b': None, 'c': '2'}
+    assert search_query.q_fields_clause(thedict) == ['a^1', 'c^2']
 
 
 def test_single_field_fields_clause_with_boost():
