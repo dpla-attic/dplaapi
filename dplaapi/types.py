@@ -12,6 +12,13 @@ items_params = {
             min_length=2,
             max_length=200,
             allow_null=True),
+    'fields': apistar.validators.String(
+            title='Fields',
+            description='Fields to return',
+            min_length=2,
+            max_length=200,
+            pattern=r'^[a-zA-Z\.,]+',
+            allow_null=True),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',

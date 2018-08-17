@@ -97,6 +97,16 @@ def single_field_fields_clause(field, boost):
         return [field]
 
 
+def fields_and_constraints(params):
+    """Given querystring parameters, return a tuple of dicts for those that are
+    record fields and those that are query constraints"""
+    fields = {k: v for (k, v) in params.items()
+              if k in fields_to_query or k == 'q'}
+    constraints = {k: v for (k, v) in params.items()
+                   if k not in fields_to_query and k != 'q'}
+    return (fields, constraints)
+
+
 class SearchQuery():
     """Elasticsearch Search API query
 
@@ -110,15 +120,16 @@ class SearchQuery():
     def __init__(self, params: dict):
         """Initialize the SearchQuery
 
-        Parameters:
+        Arguments:
         - params: The request's querystring parameters
         """
         self.query = skel.copy()
-        if not params.keys():
+        fields, constraints = fields_and_constraints(params)
+        if not fields.keys():
             self.query['query'] = {'match_all': {}}
         else:
             self.query['query'] = {'bool': {'must': []}}
-            for field, term in params.items():
+            for field, term in fields.items():
                 must = must_skel.copy()
                 must['query_string']['query'] = term
                 if field == 'q':
@@ -129,3 +140,6 @@ class SearchQuery():
                     must['query_string']['fields'] = \
                         single_field_fields_clause(field, boost)
                 self.query['query']['bool']['must'].append(must)
+
+        if 'fields' in constraints:
+            self.query['_source'] = constraints['fields'].split(',')

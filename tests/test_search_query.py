@@ -10,6 +10,7 @@ def test_search_query_produces_match_all_for_no_query_terms():
     params = types.ItemsQueryType()
     sq = search_query.SearchQuery(params)
     assert 'match_all' in sq.query['query']
+    assert 'bool' not in sq.query['query']
 
 
 def test_search_query_produces_bool_query_for_query_terms():
@@ -17,6 +18,7 @@ def test_search_query_produces_bool_query_for_query_terms():
     params = types.ItemsQueryType({'q': 'test'})
     sq = search_query.SearchQuery(params)
     assert 'bool' in sq.query['query']
+    assert 'match_all' not in sq.query['query']
 
 
 def test_query_string_clause_has_all_correct_fields_for_q_query():
@@ -48,6 +50,30 @@ def test_query_string_clause_has_all_correct_fields_for_q_query():
     assert got_fields.sort() == good_fields.sort()
 
 
+def test_search_query_has_source_clause_for_fields_constraint():
+    """If there's a "fields" query param, there's a "_source" property in the
+    Elasticsearch query."""
+    params = types.ItemsQueryType({'fields': 'id'})
+    sq = search_query.SearchQuery(params)
+    assert '_source' in sq.query
+
+
+def test_search_query_can_handle_match_all_and_fields():
+    """A correct ES query is generated for a match_all() with a _source prop"""
+    params = types.ItemsQueryType({'fields': 'id'})
+    sq = search_query.SearchQuery(params)
+    assert 'match_all' in sq.query['query']
+    assert '_source' in sq.query
+
+
+def test_search_query_can_handle_bool_and_fields():
+    """A correct ES query is generated for a bool with a _source prop"""
+    params = types.ItemsQueryType({'provider.name': 'test', 'fields': 'id'})
+    sq = search_query.SearchQuery(params)
+    assert 'bool' in sq.query['query']
+    assert '_source' in sq.query
+
+
 def test_q_fields_clause_items_returns_correct_generator():
     thedict = {'a': '1', 'b': None, 'c': '2'}
     generator = search_query.q_fields_clause_items(thedict)
@@ -67,3 +93,19 @@ def test_single_field_fields_clause_with_boost():
 
 def test_single_field_fields_clause_no_boost():
     assert search_query.single_field_fields_clause('field', None) == ['field']
+
+
+def test_fields_and_constraints_separates_parameters():
+    """Given a dict of record field names and query constraints, it produces
+    two dicts, one with the field names, and the other with the constraints.
+    """
+    params = {
+        'dataProvider': 'x',
+        'sourceResource.type': 'x',
+        'fields': 'sourceResource.title'
+    }
+    ok = (
+        {'dataProvider': 'x', 'sourceResource.type': 'x'},
+        {'fields': 'sourceResource.title'}
+    )
+    assert search_query.fields_and_constraints(params) == ok
