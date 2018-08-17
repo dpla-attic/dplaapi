@@ -3,11 +3,16 @@
 
 import pytest
 import requests
+from apistar import test
 from apistar.exceptions import BadRequest
 from apistar.http import QueryParams
+from dplaapi import app
+from dplaapi import search_query
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.exceptions import ServerError
-from dplaapi.search_query import SearchQuery
+
+
+client = test.TestClient(app)
 
 
 minimal_good_response = {
@@ -66,7 +71,7 @@ async def test_items_makes_es_request(monkeypatch):
     """items() makes an HTTP request to Elasticsearch"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     params = QueryParams({'q': 'abcd'})
-    result = await v2_handlers.items(params)
+    result = await v2_handlers.multiple_items(params)
     assert result == minimal_good_response
 
 
@@ -76,7 +81,7 @@ async def test_items_raises_BadRequest_for_bad_param_value():
     400 Bad Request responses"""
     params = QueryParams({'rights': "Not the URL it's supposed to be"})
     with pytest.raises(BadRequest):
-        await v2_handlers.items(params)
+        await v2_handlers.multiple_items(params)
 
 
 @pytest.mark.asyncio
@@ -87,7 +92,7 @@ async def test_items_raises_BadRequest_for_unparseable_term(monkeypatch):
     # an HTTP 400 Bad Request.
     params = QueryParams({'sourceResource.title': 'this AND AND that'})
     with pytest.raises(BadRequest) as excinfo:
-        await v2_handlers.items(params)
+        await v2_handlers.multiple_items(params)
     assert 'Invalid query' in str(excinfo)
 
 
@@ -99,7 +104,7 @@ async def test_items_raises_ServerError_for_elasticsearch_errs(monkeypatch):
     # 400 Bad Request.  Say a 500 Server Error, or a 404.
     params = QueryParams({'q': 'goodquery'})
     with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.items(params)
+        await v2_handlers.multiple_items(params)
     assert 'Backend search operation failed' in str(excinfo)
 
 
@@ -107,8 +112,51 @@ async def test_items_raises_ServerError_for_elasticsearch_errs(monkeypatch):
 async def test_items_raises_ServerError_for_misc_app_exception(monkeypatch):
     """A bug in our application that raises an Exception results in
     a ServerError (HTTP 500) with a generic message"""
-    monkeypatch.setattr(SearchQuery, '__init__', mock_application_exception)
+    monkeypatch.setattr(
+        search_query.SearchQuery, '__init__', mock_application_exception)
     params = QueryParams({'q': 'goodquery'})
     with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.items(params)
+        await v2_handlers.multiple_items(params)
     assert 'Unexpected error'in str(excinfo)
+
+
+@pytest.mark.asyncio
+async def test_items_handles_query_parameters(monkeypatch):
+    """items() makes a good `goodparams' dict from querystring params"""
+    def mock_searchquery(params_to_check):
+        assert params_to_check == {'q': 'test'}
+        return {}
+    monkeypatch.setattr(search_query, 'SearchQuery', mock_searchquery)
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    params = QueryParams({'q': 'test'})
+    await v2_handlers.multiple_items(params)
+
+
+@pytest.mark.asyncio
+async def test_items_handles_string_parameter(monkeypatch):
+    """items() makes a good `goodparams' dict from a single string parameter"""
+    def mock_searchquery(params_to_check):
+        assert params_to_check == {'id': '13283cd2bd45ef385aae962b144c7e6a'}
+        return {}
+    monkeypatch.setattr(search_query, 'SearchQuery', mock_searchquery)
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    record_id = '13283cd2bd45ef385aae962b144c7e6a'
+    await v2_handlers.single_item(record_id)
+
+
+def test_multiple_items_path(monkeypatch):
+    """/v2/items calls items() with query parameters object"""
+    def mock_items_multiple(arg):
+        assert isinstance(arg, QueryParams)
+        return {}
+    monkeypatch.setattr(v2_handlers, 'items', mock_items_multiple)
+    client.get('/v2/items')
+
+
+def test_single_item_path(monkeypatch):
+    """/v2/items/{id} calls items() with a string"""
+    def mock_items_single(arg):
+        assert isinstance(arg, str)
+        return {}
+    monkeypatch.setattr(v2_handlers, 'items', mock_items_single)
+    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')

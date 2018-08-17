@@ -11,10 +11,13 @@ from dplaapi.search_query import SearchQuery
 log = logging.getLogger(__name__)
 
 
-async def items(params: apistar.http.QueryParams) -> dict:
+def items(id_or_queryparams) -> dict:
     """Get "item" records"""
     try:
-        goodparams = ItemsQueryType({k: v for [k, v] in params})
+        if isinstance(id_or_queryparams, str):
+            goodparams = ItemsQueryType({'id': id_or_queryparams})
+        else:
+            goodparams = ItemsQueryType({k: v for [k, v] in id_or_queryparams})
         sq = SearchQuery(goodparams)
         log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
@@ -35,3 +38,11 @@ async def items(params: apistar.http.QueryParams) -> dict:
     except Exception as e:
         log.exception('Unexpected error')
         raise ServerError('Unexpected error')
+
+
+async def multiple_items(params: apistar.http.QueryParams) -> dict:
+    return items(params)
+
+
+async def single_item(record_id: str) -> dict:
+    return items(record_id)
