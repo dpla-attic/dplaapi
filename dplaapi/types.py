@@ -2,6 +2,8 @@
 import apistar
 
 
+max_page_size = 500
+total_result_set_size = 50000 + 500
 sr = 'SourceResource (Cultural Heritage Object)'
 url_match_pat = r'^https?://[-a-zA-Z0-9:%_\+.~#?&/=]+$'
 
@@ -18,6 +20,18 @@ items_params = {
             min_length=2,
             max_length=200,
             pattern=r'^[a-zA-Z\.,]+',
+            allow_null=True),
+    'page': apistar.validators.String(
+            title='Page',
+            description='Page Number',
+            pattern=r'^\d+$',
+            # validation of maximum value depends on page_size, so see
+            # ItemsQueryType.__init__()
+            allow_null=True),
+    'page_size': apistar.validators.String(
+            title='Page Size',
+            description='Number of records per page',
+            pattern=r'^\d+$',
             allow_null=True),
     'id': apistar.validators.String(
             title='ID',
@@ -308,7 +322,30 @@ class ItemsQueryType(dict):
         super(ItemsQueryType, self).__init__(*args)
         for k, v in self.items():
             if k in items_params:
-                items_params[k].validate(v)
+                try:
+                    items_params[k].validate(v)
+                    # This is not great, but I have to do this because all
+                    # query string parameters come in as strings.  I think that
+                    # the types system works better if you use path parameters,
+                    # or if you're using JSON post data.  The validate() call
+                    # of a validators.Integer() will  blow up on a string, so
+                    # I'm pattern-matching above in items_params.
+                    if k in ['page', 'page_size']:
+                        self[k] = int(v)
+                except apistar.exceptions.ValidationError as e:
+                    # Do this because otherwise the message doesn't make it
+                    # clear which parameter had the problem:
+                    raise apistar.exceptions.ValidationError(
+                        "%s: %s" % (k, str(e)))
             else:
                 raise apistar.exceptions.ValidationError(
                     "%s is not a valid parameter" % k)
+        if 'page' not in self:
+            self['page'] = 1
+        if 'page_size' not in self:
+            self['page_size'] = 10
+
+        if self['page'] * self['page_size'] >= total_result_set_size:
+            raise apistar.exceptions.ValidationError(
+                "Total result set size may not exceed %d. Check page_size and "
+                "page parameters." % total_result_set_size)

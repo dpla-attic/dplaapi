@@ -143,3 +143,7 @@ class SearchQuery():
 
         if 'fields' in constraints:
             self.query['_source'] = constraints['fields'].split(',')
+
+        self.query['from'] = \
+            (constraints['page'] - 1) * constraints['page_size']
+        self.query['size'] = constraints['page_size']
