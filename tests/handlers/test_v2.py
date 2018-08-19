@@ -16,9 +16,16 @@ client = test.TestClient(app)
 
 
 minimal_good_response = {
-    'hits': [
-        {'_source': {'sourceResource': {'title': 'x'}}}
-    ]
+    'took': 5,
+    'timed_out': False,
+    'shards': {'total': 3, 'successful': 3, 'skipped': 0, 'failed': 0},
+    'hits': {
+        'total': 1,
+        'max_score': None,
+        'hits': [
+            {'_source': {'sourceResource': {'title': 'x'}}}
+        ]
+    }
 }
 
 
@@ -71,8 +78,21 @@ async def test_items_makes_es_request(monkeypatch):
     """items() makes an HTTP request to Elasticsearch"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     params = QueryParams({'q': 'abcd'})
+    await v2_handlers.multiple_items(params)  # No error
+
+
+@pytest.mark.asyncio
+async def test_items_formats_response_metadata(monkeypatch):
+    """items() assembles the correct response metadata"""
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    params = QueryParams({'q': 'abcd'})
     result = await v2_handlers.multiple_items(params)
-    assert result == minimal_good_response
+    # See minimal_good_resonse above
+    assert result['count'] == 1
+    assert result['start'] == 1   # page 1; the default
+    assert result['limit'] == 10  # the default
+    assert result['docs'] == \
+        [hit['_source'] for hit in minimal_good_response['hits']['hits']]
 
 
 @pytest.mark.asyncio
@@ -157,6 +177,16 @@ def test_single_item_path(monkeypatch):
     """/v2/items/{id} calls items() with a string"""
     def mock_items_single(arg):
         assert isinstance(arg, str)
-        return {}
+        return {
+            'count': 1,
+            'start': 1,
+            'limit': 10,
+            'docs': [
+                {
+                    'id': '13283cd2bd45ef385aae962b144c7e6a',
+                    'sourceResource': {'title': 'x'}
+                }
+            ]
+        }
     monkeypatch.setattr(v2_handlers, 'items', mock_items_single)
-    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
+    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')      # no error
