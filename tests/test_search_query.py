@@ -127,3 +127,52 @@ def test_SearchQuery_from_is_calculated_from_page_and_page_size():
     params = types.ItemsQueryType({'page': '2', 'page_size': '2'})
     sq2 = search_query.SearchQuery(params)
     assert sq2.query['from'] == 2
+
+
+def test_SearchQuery_has_correct_default_sort():
+    """The search query without sort requested has the correct 'sort'"""
+    params = types.ItemsQueryType()
+    sq = search_query.SearchQuery(params)
+    assert sq.query['sort'] == [
+        {'_score': {'order': 'desc'}},
+        {'id': {'order': 'asc'}},
+    ]
+
+
+def test_SearchQuery_has_sort_given_sort_by_param():
+    """The search query has the correct sort if we got a sort_by parameter"""
+    params = types.ItemsQueryType({'sort_by': 'sourceResource.type'})
+    sq = search_query.SearchQuery(params)
+    assert sq.query['sort'] == [
+        {'sourceResource.type': {'order': 'asc'}},
+        {'_score': {'order': 'desc'}}
+    ]
+
+
+def test_SearchQuery_uses_not_analyzed_field_where_necessary():
+    """The search query specifies the not_analyzed (keyword) field if the
+    requested fields needs it; usually when it's a text field."""
+    params = types.ItemsQueryType({'sort_by': 'sourceResource.title'})
+    sq = search_query.SearchQuery(params)
+    assert sq.query['sort'] == [
+        {'sourceResource.title.not_analyzed': {'order': 'asc'}},
+        {'_score': {'order': 'desc'}}
+    ]
+
+
+def test_SearchQuery_does_geo_distance_sort():
+    """A _geo_distance sort is performed for coordinates and pin params"""
+    params = types.ItemsQueryType({
+        'sort_by': 'sourceResource.spatial.coordinates',
+        'sort_by_pin': '26.15952,-97.99084'
+    })
+    sq = search_query.SearchQuery(params)
+    assert sq.query['sort'] == [
+        {
+            '_geo_distance': {
+                'sourceResource.spatial.coordinates': '26.15952,-97.99084',
+                'order': 'asc',
+                'unit': 'mi'
+            }
+        }
+    ]

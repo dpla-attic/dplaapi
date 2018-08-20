@@ -33,6 +33,37 @@ items_params = {
             description='Number of records per page',
             pattern=r'^\d+$',
             allow_null=True),
+    'sort_by': apistar.validators.String(
+            title='Sort By',
+            description='Field to sort by',
+            enum=[
+                'id', '@id', 'sourceResource.contributor',
+                'sourceResource.date.begin', 'sourceResource.date.end',
+                'sourceResource.extent', 'sourceResource.language.name',
+                'sourceResource.language.iso639_3', 'sourceResource.format',
+                'sourceResource.spatial.name',
+                'sourceResource.spatial.country',
+                'sourceResource.spatial.region',
+                'sourceResource.spatial.county',
+                'sourceResource.spatial.state', 'sourceResource.spatial.city',
+                'sourceResource.spatial.coordinates',
+                'sourceResource.subject.@id', 'sourceResource.subject.name',
+                'sourceResource.temporal.begin', 'sourceResource.temporal.end',
+                'sourceResource.title', 'sourceResource.type', 'hasView.@id',
+                'hasView.format', 'isPartOf.@id', 'isPartOf.name', 'isShownAt',
+                'object', 'provider.@id', 'provider.name'],
+            allow_null=True),
+    'sort_order': apistar.validators.String(
+            title='Sort Order',
+            description='Sort Order ("asc" or "desc")',
+            enum=['asc', 'desc'],
+            allow_null=True),
+    'sort_by_pin': apistar.validators.String(
+            title='Sort-By Pin',
+            description='When sort_order is sourceResource.spatial'
+                        '.coordinates, sort by distance from this point.',
+            pattern=r'^[\+\-]?\d+(?:\.\d+)?,[\+\-]?\d+(?:\.\d+)?$',
+            allow_null=True),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',
@@ -344,6 +375,13 @@ class ItemsQueryType(dict):
             self['page'] = 1
         if 'page_size' not in self:
             self['page_size'] = 10
+        if 'sort_order' not in self:
+            self['sort_order'] = 'asc'
+
+        if self.get('sort_by', None) == 'sourceResource.spatial.coordinates' \
+                and 'sort_by_pin' not in self:
+            raise apistar.exceptions.ValidationError(
+                'The sort_by_pin parameter is required.')
 
         if self['page'] * self['page_size'] >= total_result_set_size:
             raise apistar.exceptions.ValidationError(

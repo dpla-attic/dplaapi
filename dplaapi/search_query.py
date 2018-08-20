@@ -7,14 +7,10 @@ Elasticsearch Search API query
 
 
 skel = {
-    'sort': {
-        '_score': {
-            'order': 'desc'
-        },
-        'id': {
-            'order': 'asc'
-        }
-    },
+    'sort': [
+        {'_score': {'order': 'desc'}},
+        {'id': {'order': 'asc'}}
+    ],
     'from': 0,
     'size': 10
 }
@@ -75,6 +71,45 @@ fields_to_query = {
     'sourceResource.subject.name': '1',
     'sourceResource.title': '2',
     'sourceResource.type': '1'
+}
+
+
+sort_by = {
+    'id': 'id',
+    '@id': '@id',
+    'sourceResource.contributor': 'sourceResource.contributor',
+    'sourceResource.date.begin': 'sourceResource.date.begin.not_analyzed',
+    'sourceResource.date.end': 'sourceResource.date.end.not_analyzed',
+    'sourceResource.extent': 'sourceResource.extent',
+    'sourceResource.language.name': 'sourceResource.language.name',
+    'sourceResource.language.iso639_3': 'sourceResource.language.iso639_3',
+    'sourceResource.format': 'sourceResource.format',
+    'sourceResource.spatial.name': 'sourceResource.spatial.name.not_analyzed',
+    'sourceResource.spatial.country': 'sourceResource.spatial.country'
+                                      '.not_analyzed',
+    'sourceResource.spatial.region': 'sourceResource.spatial.region'
+                                     '.not_analyzed',
+    'sourceResource.spatial.county': 'sourceResource.spatial.county'
+                                     '.not_analyzed',
+    'sourceResource.spatial.state': 'sourceResource.spatial.state'
+                                    '.not_analyzed',
+    'sourceResource.spatial.city': 'sourceResource.spatial.city.not_analyzed',
+    'sourceResource.spatial.coordinates': 'sourceResource.spatial.coordinates',
+    'sourceResource.subject.@id': 'sourceResource.subject.@id',
+    'sourceResource.subject.name': 'sourceResource.subject.name.not_analyzed',
+    'sourceResource.temporal.begin': 'sourceResource.temporal.begin'
+                                     '.not_analyzed',
+    'sourceResource.temporal.end': 'sourceResource.temporal.end.not_analyzed',
+    'sourceResource.title': 'sourceResource.title.not_analyzed',
+    'sourceResource.type': 'sourceResource.type',
+    'hasView.@id': 'hasView.@id',
+    'hasView.format': 'hasView.format',
+    'isPartOf.@id': 'isPartOf.@id',
+    'isPartOf.name': 'isPartOf.name.not_analyzed',
+    'isShownAt': 'isShownAt',
+    'object': 'object',
+    'provider.@id': 'provider.@id',
+    'provider.name': 'provider.name.not_analyzed'
 }
 
 
@@ -147,3 +182,21 @@ class SearchQuery():
         self.query['from'] = \
             (constraints['page'] - 1) * constraints['page_size']
         self.query['size'] = constraints['page_size']
+
+        if 'sort_by' in constraints:
+            actual_field = sort_by[constraints['sort_by']]
+            if actual_field == 'sourceResource.spatial.coordinates':
+                pin = constraints['sort_by_pin']
+                self.query['sort'] = [
+                    {
+                        '_geo_distance': {
+                            'sourceResource.spatial.coordinates': pin,
+                            'order': 'asc',
+                            'unit': 'mi'
+                        }
+                    }
+                ]
+            else:
+                self.query['sort'] = [
+                    {actual_field: {'order': constraints['sort_order']}},
+                    {'_score': {'order': 'desc'}}]

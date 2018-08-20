@@ -65,3 +65,16 @@ def test_ItemsQueryType_validates_offset():
         types.ItemsQueryType({'page_size': '500', 'page': '101'})
     with pytest.raises(ValidationError):
         types.ItemsQueryType({'page_size': '10', 'page': '5050'})
+
+
+def test_ItemsQueryType_sets_default_sort_order():
+    """ItemsQueryType sets sort_order if it is not given"""
+    x = types.ItemsQueryType()
+    assert x['sort_order'] == 'asc'
+
+
+def test_ItemsQueryType_flunks_sort_on_coordinates_without_pin():
+    """ItemsQueryType fails a sort on sourceResource.spatial.coordinates
+    without a sort_by_pin value"""
+    with pytest.raises(ValidationError):
+        types.ItemsQueryType({'sort_by': 'sourceResource.spatial.coordinates'})
