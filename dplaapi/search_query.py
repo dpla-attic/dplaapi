@@ -75,41 +75,41 @@ fields_to_query = {
 
 
 sort_by = {
-    'id': 'id',
     '@id': '@id',
+    'hasView.@id': 'hasView.@id',
+    'hasView.format': 'hasView.format',
+    'id': 'id',
+    'isPartOf.@id': 'isPartOf.@id',
+    'isPartOf.name': 'isPartOf.name.not_analyzed',
+    'isShownAt': 'isShownAt',
+    'object': 'object',
+    'provider.@id': 'provider.@id',
+    'provider.name': 'provider.name.not_analyzed',
     'sourceResource.contributor': 'sourceResource.contributor',
     'sourceResource.date.begin': 'sourceResource.date.begin.not_analyzed',
     'sourceResource.date.end': 'sourceResource.date.end.not_analyzed',
     'sourceResource.extent': 'sourceResource.extent',
-    'sourceResource.language.name': 'sourceResource.language.name',
-    'sourceResource.language.iso639_3': 'sourceResource.language.iso639_3',
     'sourceResource.format': 'sourceResource.format',
-    'sourceResource.spatial.name': 'sourceResource.spatial.name.not_analyzed',
+    'sourceResource.language.iso639_3': 'sourceResource.language.iso639_3',
+    'sourceResource.language.name': 'sourceResource.language.name',
+    'sourceResource.spatial.city': 'sourceResource.spatial.city.not_analyzed',
+    'sourceResource.spatial.coordinates': 'sourceResource.spatial.coordinates',
     'sourceResource.spatial.country': 'sourceResource.spatial.country'
                                       '.not_analyzed',
-    'sourceResource.spatial.region': 'sourceResource.spatial.region'
-                                     '.not_analyzed',
     'sourceResource.spatial.county': 'sourceResource.spatial.county'
+                                     '.not_analyzed',
+    'sourceResource.spatial.name': 'sourceResource.spatial.name.not_analyzed',
+    'sourceResource.spatial.region': 'sourceResource.spatial.region'
                                      '.not_analyzed',
     'sourceResource.spatial.state': 'sourceResource.spatial.state'
                                     '.not_analyzed',
-    'sourceResource.spatial.city': 'sourceResource.spatial.city.not_analyzed',
-    'sourceResource.spatial.coordinates': 'sourceResource.spatial.coordinates',
     'sourceResource.subject.@id': 'sourceResource.subject.@id',
     'sourceResource.subject.name': 'sourceResource.subject.name.not_analyzed',
     'sourceResource.temporal.begin': 'sourceResource.temporal.begin'
                                      '.not_analyzed',
     'sourceResource.temporal.end': 'sourceResource.temporal.end.not_analyzed',
     'sourceResource.title': 'sourceResource.title.not_analyzed',
-    'sourceResource.type': 'sourceResource.type',
-    'hasView.@id': 'hasView.@id',
-    'hasView.format': 'hasView.format',
-    'isPartOf.@id': 'isPartOf.@id',
-    'isPartOf.name': 'isPartOf.name.not_analyzed',
-    'isShownAt': 'isShownAt',
-    'object': 'object',
-    'provider.@id': 'provider.@id',
-    'provider.name': 'provider.name.not_analyzed'
+    'sourceResource.type': 'sourceResource.type'
 }
 
 
