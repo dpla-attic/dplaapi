@@ -105,7 +105,8 @@ async def specific_item(id_or_ids: str) -> dict:
     for the_id in ids:
         if not re.match(r'[a-f0-9]{32}$', the_id):
             raise apistar.exceptions.BadRequest("Bad ID: %s" % the_id)
-    (result, goodparams) = items(ids)
+    (result, notused) = items(ids)
+    del(notused)
     return {
         'count': result['hits']['total'],
         'docs': [hit['_source'] for hit in result['hits']['hits']]
