@@ -29,6 +29,39 @@ minimal_good_response = {
 }
 
 
+es6_facets = {
+    'provider.name': {
+        'doc_count_error_upper_bound': 169613,
+        'sum_other_doc_count': 5893411,
+        'buckets': [
+            {
+                'key': 'National Archives and Records Administration',
+                'doc_count': 3781862
+            }
+        ]
+    },
+    'sourceResource.date.begin': {
+        'buckets': [
+            {
+                'key_as_string': '2018-01-01T00:00:00.000Z',
+                'key': 1514782800000,
+                'doc_count': 335
+            }
+        ]
+    },
+    'sourceResource.spatial.coordinates': {
+        'buckets': [
+            {
+                'key': '*-99.0',
+                'from': 0,
+                'to': 99,
+                'doc_count': 518784
+            }
+        ]
+    }
+}
+
+
 class MockGoodResponse():
     """Mock a good `requests.Response`"""
     def raise_for_status(self):
@@ -190,3 +223,74 @@ def test_single_item_path(monkeypatch):
         }
     monkeypatch.setattr(v2_handlers, 'items', mock_items_single)
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')      # no error
+
+
+def test_geo_facets():
+    result = v2_handlers.geo_facets(
+        es6_facets['sourceResource.spatial.coordinates'])
+    assert result == {
+        '_type': 'geo_distance',
+        'ranges': [{'from': 0, 'to': 99, 'count': 518784}]
+    }
+
+
+def test_date_facets():
+    result = v2_handlers.date_facets(
+        es6_facets['sourceResource.date.begin'])
+    assert result == {
+        '_type': 'date_histogram',
+        'entries': [{'time': '2018-01-01', 'count': 335}]
+    }
+
+
+def test_date_formatted():
+    assert v2_handlers.date_formatted(788918400000) == '1995-01-01'
+
+
+def test_term_facets():
+    result = v2_handlers.term_facets(
+        es6_facets['provider.name'])
+    assert result == {
+        '_type': 'terms',
+        'terms': [
+            {
+                'term': 'National Archives and Records Administration',
+                'count': 3781862
+            }
+        ]
+    }
+
+
+def test_formatted_facets():
+    """It makes the necessary function calls and dictionary lookups to
+    construct and return a correct dict"""
+    assert v2_handlers.formatted_facets(es6_facets) == {
+        'provider.name': {
+            '_type': 'terms',
+            'terms': [
+                {
+                    'term': 'National Archives and Records Administration',
+                    'count': 3781862
+                }
+            ]
+        },
+        'sourceResource.date.begin': {
+            '_type': 'date_histogram',
+            'entries': [
+                {
+                    'time': '2018-01-01',
+                    'count': 335
+                }
+            ]
+        },
+        'sourceResource.spatial.coordinates': {
+            '_type': 'geo_distance',
+            'ranges': [
+                {
+                    'from': 0,
+                    'to': 99,
+                    'count': 518784
+                }
+            ]
+        }
+    }

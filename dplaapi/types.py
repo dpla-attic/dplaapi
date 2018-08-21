@@ -64,6 +64,13 @@ items_params = {
                         '.coordinates, sort by distance from this point.',
             pattern=r'^[\+\-]?\d+(?:\.\d+)?,[\+\-]?\d+(?:\.\d+)?$',
             allow_null=True),
+    'facets': apistar.validators.String(
+            title='Facets',
+            description='Facets',
+            min_length=2,
+            max_length=200,
+            pattern=r'^[a-zA-Z\.,]+',
+            allow_null=True),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',

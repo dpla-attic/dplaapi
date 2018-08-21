@@ -5,6 +5,9 @@ dplaapi.search_query
 Elasticsearch Search API query
 """
 
+from apistar.exceptions import ValidationError
+from .facets import facets
+
 
 skel = {
     'sort': [
@@ -142,6 +145,60 @@ def fields_and_constraints(params):
     return (fields, constraints)
 
 
+def clean_facet_name(name):
+    """Clean facet name, without geo distance ":" suffix"""
+    return name.partition(':')[0]
+
+
+def facets_for(field_name):
+    """Return a dict for the aggregation (facet) for the given field"""
+
+    if field_name.startswith('sourceResource.spatial.coordinates'):
+        parts = field_name.partition(':')
+        field, coords_part = parts[0], parts[2]
+        origin = coords_part.replace(':', ',')
+        ranges = \
+            [{'from': i, 'to': i + 99} for i in range(0, 2100, 100)] \
+            + [{'from': 2100}]
+        return {
+            'geo_distance': {
+                'field': field,
+                'origin': origin,
+                'unit': 'mi',
+                'ranges': ranges
+            }
+        }
+
+    else:
+        try:
+            actual_field, facet_type = facets[field_name]
+        except KeyError:
+            raise ValidationError("%s is not a facetable field" % field_name)
+        if facet_type == 'date_histogram':
+            # TODO: check if the `platform' app lets you specify by year,
+            # month, decade, etc. I think it may, though this is
+            # undocumented.
+            return {
+                'date_histogram': {
+                    'field': actual_field,
+                    'interval': 'year',
+                    'order': {'_key': 'desc'},
+                    'min_doc_count': 2
+                }
+            }
+        else:
+            return {'terms': {'field': actual_field}}
+
+
+def facets_clause(facets_string):
+    """Return a dict for the whole Elasticsearch 'aggs' property"""
+    names = facets_string.split(',')
+    return {clean_facet_name(name): facets_for(name) for name in names}
+
+
+# TODO break out function for sort_by, as was done with facets_clause()
+
+
 class SearchQuery():
     """Elasticsearch Search API query
 
@@ -200,3 +257,6 @@ class SearchQuery():
                 self.query['sort'] = [
                     {actual_field: {'order': constraints['sort_order']}},
                     {'_score': {'order': 'desc'}}]
+
+        if 'facets' in constraints:
+            self.query['aggs'] = facets_clause(constraints['facets'])

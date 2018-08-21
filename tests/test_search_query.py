@@ -1,7 +1,9 @@
 """Test dplaapi.search_query"""
 
 import re
+import pytest
 from types import GeneratorType
+from apistar.exceptions import ValidationError
 from dplaapi import search_query, types
 
 
@@ -176,3 +178,81 @@ def test_SearchQuery_does_geo_distance_sort():
             }
         }
     ]
+
+
+def test_SearchQuery_clean_facet_name_works():
+    """Facet names are cleaned for use as 'aggs' object keys"""
+    assert search_query.clean_facet_name('x:y:z') == 'x'
+
+
+def test_SearchQuery_adds_facets_to_query():
+    """SearchQuery adds a 'facets' property to the query if a 'facets' param
+    is given."""
+    params = types.ItemsQueryType({'facets': 'provider.name'})
+    sq = search_query.SearchQuery(params)
+    assert 'aggs' in sq.query
+
+
+def test_SearchQuery_facets_clause_return_correct_dict(monkeypatch):
+    """The dict comprehension for the facets clause works and it makes the
+    right function calls"""
+    def mock_facets_for(name):
+        assert name in ['x', 'y']
+        return {}
+    monkeypatch.setattr(search_query, 'facets_for', mock_facets_for)
+    assert search_query.facets_clause('x,y') == {'x': {}, 'y': {}}
+
+
+def test_SearchQuery_facets_for_handles_keyword_field():
+    """It makes a simple 'terms' clause"""
+    assert search_query.facets_for('hasView.@id') == {
+        'terms': {'field': 'hasView.@id'}
+    }
+
+
+def test_SearchQuery_facets_for_handles_text_field():
+    """It uses the .not_analyzed field"""
+    assert search_query.facets_for('intermediateProvider') == {
+        'terms': {'field': 'intermediateProvider.not_analyzed'}
+    }
+
+
+def test_SearchQuery_facets_for_handles_date_field():
+    assert search_query.facets_for('sourceResource.date.begin') == {
+        'date_histogram': {
+            'field': 'sourceResource.date.begin',
+            'interval': 'year',
+            'min_doc_count': 2,
+            'order': {'_key': 'desc'}
+        }
+    }
+
+
+def test_SearchQuery_facets_for_handles_coordinates_field():
+    f = 'sourceResource.spatial.coordinates:40.941258:-73.864468'
+    ranges = [
+        {'from': 0, 'to': 99}, {'from': 100, 'to': 199},
+        {'from': 200, 'to': 299}, {'from': 300, 'to': 399},
+        {'from': 400, 'to': 499}, {'from': 500, 'to': 599},
+        {'from': 600, 'to': 699}, {'from': 700, 'to': 799},
+        {'from': 800, 'to': 899}, {'from': 900, 'to': 999},
+        {'from': 1000, 'to': 1099}, {'from': 1100, 'to': 1199},
+        {'from': 1200, 'to': 1299}, {'from': 1300, 'to': 1399},
+        {'from': 1400, 'to': 1499}, {'from': 1500, 'to': 1599},
+        {'from': 1600, 'to': 1699}, {'from': 1700, 'to': 1799},
+        {'from': 1800, 'to': 1899}, {'from': 1900, 'to': 1999},
+        {'from': 2000, 'to': 2099}, {'from': 2100}]
+    facets_clause = search_query.facets_for(f)
+    assert facets_clause == {
+        'geo_distance': {
+            'field': 'sourceResource.spatial.coordinates',
+            'origin': '40.941258,-73.864468',
+            'unit': 'mi',
+            'ranges': ranges
+        }
+    }
+
+
+def test_SearchQuery_facets_for_raises_exception_for_bad_field_name():
+    with pytest.raises(ValidationError):
+        search_query.facets_for('x')
