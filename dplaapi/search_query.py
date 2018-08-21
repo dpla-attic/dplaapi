@@ -9,13 +9,18 @@ from apistar.exceptions import ValidationError
 from .facets import facets
 
 
-skel = {
+query_skel_search = {
     'sort': [
         {'_score': {'order': 'desc'}},
         {'id': {'order': 'asc'}}
-    ],
+    ]
+}
+
+
+query_skel_specific_ids = {
+    'sort': {'id': {'order': 'asc'}},
     'from': 0,
-    'size': 10
+    'size': 50
 }
 
 
@@ -139,7 +144,7 @@ def fields_and_constraints(params):
     """Given querystring parameters, return a tuple of dicts for those that are
     record fields and those that are query constraints"""
     fields = {k: v for (k, v) in params.items()
-              if k in fields_to_query or k == 'q'}
+              if k in fields_to_query or k == 'q' or k == 'ids'}
     constraints = {k: v for (k, v) in params.items()
                    if k not in fields_to_query and k != 'q'}
     return (fields, constraints)
@@ -215,11 +220,16 @@ class SearchQuery():
         Arguments:
         - params: The request's querystring parameters
         """
-        self.query = skel.copy()
         fields, constraints = fields_and_constraints(params)
+
         if not fields.keys():
+            self.query = query_skel_search.copy()
             self.query['query'] = {'match_all': {}}
+        elif 'ids' in fields:
+            self.query = query_skel_specific_ids.copy()
+            self.query['query'] = {'terms': {'id': fields['ids']}}
         else:
+            self.query = query_skel_search.copy()
             self.query['query'] = {'bool': {'must': []}}
             for field, term in fields.items():
                 must = must_skel.copy()
@@ -236,9 +246,10 @@ class SearchQuery():
         if 'fields' in constraints:
             self.query['_source'] = constraints['fields'].split(',')
 
-        self.query['from'] = \
-            (constraints['page'] - 1) * constraints['page_size']
-        self.query['size'] = constraints['page_size']
+        if 'from' not in self.query:
+            self.query['from'] = \
+                (constraints['page'] - 1) * constraints['page_size']
+            self.query['size'] = constraints['page_size']
 
         if 'sort_by' in constraints:
             actual_field = sort_by[constraints['sort_by']]

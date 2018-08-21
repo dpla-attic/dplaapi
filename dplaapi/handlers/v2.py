@@ -4,6 +4,7 @@ import logging
 import requests
 import dplaapi
 import time
+import re
 from dplaapi.types import ItemsQueryType
 import dplaapi.search_query
 from dplaapi.exceptions import ServerError
@@ -14,27 +15,20 @@ from dplaapi.facets import facets
 log = logging.getLogger(__name__)
 
 
-def items(id_or_queryparams) -> dict:
+def items(ids_or_queryparams):
     """Get "item" records"""
     try:
-        if isinstance(id_or_queryparams, str):
-            goodparams = ItemsQueryType({'id': id_or_queryparams})
+        if isinstance(ids_or_queryparams, list):
+            goodparams = {'ids': ids_or_queryparams}
         else:
-            goodparams = ItemsQueryType({k: v for [k, v] in id_or_queryparams})
+            goodparams = ItemsQueryType({k: v for [k, v]
+                                         in ids_or_queryparams})
         sq = SearchQuery(goodparams)
         log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
         resp.raise_for_status()
         result = resp.json()
-        return {
-            'count': result['hits']['total'],
-            'start': (int(goodparams['page']) - 1)
-                      * int(goodparams['page_size'])               # noqa: E131
-                      + 1,                                         # noqa: E131
-            'limit': int(goodparams['page_size']),
-            'docs': [hit['_source'] for hit in result['hits']['hits']],
-            'facets': formatted_facets(result.get('aggregations', {}))
-        }
+        return (result, goodparams)
     except apistar.exceptions.ValidationError as e:
         raise apistar.exceptions.BadRequest(e.detail)
     except requests.exceptions.HTTPError as e:
@@ -94,13 +88,25 @@ def term_facets(dict_with_buckets):
 
 
 async def multiple_items(params: apistar.http.QueryParams) -> dict:
-    return items(params)
-
-
-async def specific_item(record_id: str) -> dict:
-    result = items(record_id)
-    # The single-item result is stripped down in v2
+    (result, goodparams) = items(params)
     return {
-        'count': 1,
-        'docs': result['docs']
+        'count': result['hits']['total'],
+        'start': (int(goodparams['page']) - 1)
+                  * int(goodparams['page_size'])               # noqa: E131
+                  + 1,                                         # noqa: E131
+        'limit': int(goodparams['page_size']),
+        'docs': [hit['_source'] for hit in result['hits']['hits']],
+        'facets': formatted_facets(result.get('aggregations', {}))
+    }
+
+
+async def specific_item(id_or_ids: str) -> dict:
+    ids = id_or_ids.split(',')
+    for the_id in ids:
+        if not re.match(r'[a-f0-9]{32}$', the_id):
+            raise apistar.exceptions.BadRequest("Bad ID: %s" % the_id)
+    (result, goodparams) = items(ids)
+    return {
+        'count': result['hits']['total'],
+        'docs': [hit['_source'] for hit in result['hits']['hits']]
     }

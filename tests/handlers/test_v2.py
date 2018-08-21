@@ -10,6 +10,7 @@ from dplaapi import app
 from dplaapi import search_query
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.exceptions import ServerError
+from dplaapi.types import ItemsQueryType
 
 
 client = test.TestClient(app)
@@ -201,7 +202,7 @@ def test_multiple_items_path(monkeypatch):
     """/v2/items calls items() with query parameters object"""
     def mock_items_multiple(arg):
         assert isinstance(arg, QueryParams)
-        return {}
+        return (minimal_good_response, ItemsQueryType())
     monkeypatch.setattr(v2_handlers, 'items', mock_items_multiple)
     client.get('/v2/items')
 
@@ -209,20 +210,35 @@ def test_multiple_items_path(monkeypatch):
 def test_specific_item_path(monkeypatch):
     """/v2/items/{id} calls items() with a string"""
     def mock_items_single(arg):
-        assert isinstance(arg, str)
-        return {
-            'count': 1,
-            'start': 1,
-            'limit': 10,
-            'docs': [
-                {
-                    'id': '13283cd2bd45ef385aae962b144c7e6a',
-                    'sourceResource': {'title': 'x'}
-                }
-            ]
-        }
+        assert isinstance(arg, list)
+        return (minimal_good_response,
+                {'ids': '13283cd2bd45ef385aae962b144c7e6a'})
     monkeypatch.setattr(v2_handlers, 'items', mock_items_single)
-    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')      # no error
+    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
+
+
+@pytest.mark.asyncio
+async def test_specific_item_handles_multiple_ids(monkeypatch):
+    """It splits ids on commas and calls items() with a list of those IDs"""
+    ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
+    def mock_items(arg):
+        assert len(arg) == 2
+        return (minimal_good_response, {'ids': ids})
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    await v2_handlers.specific_item(ids)
+
+
+@pytest.mark.asyncio
+async def test_specific_item_rejects_bad_ids_1():
+    with pytest.raises(BadRequest):
+        await v2_handlers.specific_item('x')
+
+
+@pytest.mark.asyncio
+async def test_specific_item_rejects_bad_ids_2():
+    ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867'
+    with pytest.raises(BadRequest):
+        await v2_handlers.specific_item(ids)
 
 
 def test_geo_facets():
