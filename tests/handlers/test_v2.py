@@ -194,7 +194,7 @@ async def test_items_handles_string_parameter(monkeypatch):
     monkeypatch.setattr(search_query, 'SearchQuery', mock_searchquery)
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     record_id = '13283cd2bd45ef385aae962b144c7e6a'
-    await v2_handlers.single_item(record_id)
+    await v2_handlers.specific_item(record_id)
 
 
 def test_multiple_items_path(monkeypatch):
@@ -206,7 +206,7 @@ def test_multiple_items_path(monkeypatch):
     client.get('/v2/items')
 
 
-def test_single_item_path(monkeypatch):
+def test_specific_item_path(monkeypatch):
     """/v2/items/{id} calls items() with a string"""
     def mock_items_single(arg):
         assert isinstance(arg, str)

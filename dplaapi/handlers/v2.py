@@ -97,7 +97,7 @@ async def multiple_items(params: apistar.http.QueryParams) -> dict:
     return items(params)
 
 
-async def single_item(record_id: str) -> dict:
+async def specific_item(record_id: str) -> dict:
     result = items(record_id)
     # The single-item result is stripped down in v2
     return {
