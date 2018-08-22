@@ -191,7 +191,7 @@ def test_SearchQuery_does_geo_distance_sort():
     ]
 
 
-def test_SearchQuery_clean_facet_name_works():
+def test_clean_facet_name_works():
     """Facet names are cleaned for use as 'aggs' object keys"""
     assert search_query.clean_facet_name('x:y:z') == 'x'
 
@@ -204,7 +204,7 @@ def test_SearchQuery_adds_facets_to_query():
     assert 'aggs' in sq.query
 
 
-def test_SearchQuery_facets_clause_return_correct_dict(monkeypatch):
+def test_facets_clause_return_correct_dict(monkeypatch):
     """The dict comprehension for the facets clause works and it makes the
     right function calls"""
     def mock_facets_for(name):
@@ -214,21 +214,21 @@ def test_SearchQuery_facets_clause_return_correct_dict(monkeypatch):
     assert search_query.facets_clause('x,y') == {'x': {}, 'y': {}}
 
 
-def test_SearchQuery_facets_for_handles_keyword_field():
+def test_facets_for_handles_keyword_field():
     """It makes a simple 'terms' clause"""
     assert search_query.facets_for('hasView.@id') == {
         'terms': {'field': 'hasView.@id'}
     }
 
 
-def test_SearchQuery_facets_for_handles_text_field():
+def test_facets_for_handles_text_field():
     """It uses the .not_analyzed field"""
     assert search_query.facets_for('intermediateProvider') == {
         'terms': {'field': 'intermediateProvider.not_analyzed'}
     }
 
 
-def test_SearchQuery_facets_for_handles_date_field():
+def test_facets_for_handles_date_field():
     assert search_query.facets_for('sourceResource.date.begin') == {
         'date_histogram': {
             'field': 'sourceResource.date.begin',
@@ -264,6 +264,6 @@ def test_SearchQuery_facets_for_handles_coordinates_field():
     }
 
 
-def test_SearchQuery_facets_for_raises_exception_for_bad_field_name():
+def test_facets_for_raises_exception_for_bad_field_name():
     with pytest.raises(ValidationError):
         search_query.facets_for('x')
