@@ -221,9 +221,11 @@ def test_specific_item_path(monkeypatch):
 async def test_specific_item_handles_multiple_ids(monkeypatch):
     """It splits ids on commas and calls items() with a list of those IDs"""
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
+
     def mock_items(arg):
         assert len(arg) == 2
         return (minimal_good_response, {'ids': ids})
+
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
     await v2_handlers.specific_item(ids)
 

@@ -37,7 +37,7 @@ items_params = {
             title='Sort By',
             description='Field to sort by',
             enum=[
-                'id', '@id', 'sourceResource.contributor',
+                'dataProvider', 'id', '@id', 'sourceResource.contributor',
                 'sourceResource.date.begin', 'sourceResource.date.end',
                 'sourceResource.extent', 'sourceResource.language.name',
                 'sourceResource.language.iso639_3', 'sourceResource.format',
@@ -70,6 +70,13 @@ items_params = {
             min_length=2,
             max_length=200,
             pattern=r'^[a-zA-Z\.,]+',
+            allow_null=True),
+    'exact_field_match': apistar.validators.String(
+            title='Exact Field Match',
+            description='Whether to match specific fields exactly as given '
+                        '(where the term, even if quoted, is not surrounded '
+                        'by anything else',
+            enum=['true'],
             allow_null=True),
     'id': apistar.validators.String(
             title='ID',

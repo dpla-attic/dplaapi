@@ -90,11 +90,22 @@ def test_q_fields_clause_returns_array():
 
 
 def test_single_field_fields_clause_with_boost():
-    assert search_query.single_field_fields_clause('field', '1') == ['field^1']
+    result = search_query.single_field_fields_clause('field', '1', {})
+    assert result == ['field^1']
 
 
 def test_single_field_fields_clause_no_boost():
-    assert search_query.single_field_fields_clause('field', None) == ['field']
+    result = search_query.single_field_fields_clause('field', None, {})
+    assert result == ['field']
+
+
+def test_single_field_fields_clause_subfield_exact_field_match():
+    """single_field_fields_clause() uses the 'not_analyzed' subfield if
+    'exact_field_match' is in effect."""
+    constraints = {'exact_field_match': 'true'}
+    result = search_query.single_field_fields_clause('dataProvider', None,
+                                                     constraints)
+    assert result == ['dataProvider.not_analyzed']
 
 
 def test_fields_and_constraints_separates_parameters():

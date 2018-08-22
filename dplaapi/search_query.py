@@ -24,14 +24,6 @@ query_skel_specific_ids = {
 }
 
 
-must_skel = {
-    'query_string': {
-        'default_operator': 'AND',
-        'lenient': True
-    }
-}
-
-
 # Fields available to query in a 'query_string' clause.
 #
 # The key is the field name and the value is the boost, and also indicates if
@@ -82,7 +74,8 @@ fields_to_query = {
 }
 
 
-sort_by = {
+field_or_subfield = {
+    'dataProvider': 'dataProvider.not_analyzed',
     '@id': '@id',
     'hasView.@id': 'hasView.@id',
     'hasView.format': 'hasView.format',
@@ -133,11 +126,15 @@ def q_fields_clause(d: dict):
     return [val for val in q_fields_clause_items(d)]
 
 
-def single_field_fields_clause(field, boost):
-    if boost:
-        return ['^'.join([field, boost])]
+def single_field_fields_clause(field, boost, constraints):
+    if constraints.get('exact_field_match') == 'true':
+        field_to_use = field_or_subfield.get(field, field)
     else:
-        return [field]
+        field_to_use = field
+    if boost:
+        return ['^'.join([field_to_use, boost])]
+    else:
+        return [field_to_use]
 
 
 def fields_and_constraints(params):
@@ -225,22 +222,33 @@ class SearchQuery():
         if not fields.keys():
             self.query = query_skel_search.copy()
             self.query['query'] = {'match_all': {}}
+
         elif 'ids' in fields:
             self.query = query_skel_specific_ids.copy()
             self.query['query'] = {'terms': {'id': fields['ids']}}
+
         else:
             self.query = query_skel_search.copy()
             self.query['query'] = {'bool': {'must': []}}
+
             for field, term in fields.items():
-                must = must_skel.copy()
+                must = {
+                    'query_string': {
+                        'default_operator': 'AND',
+                        'lenient': True
+                    }
+                }
                 must['query_string']['query'] = term
+
                 if field == 'q':
                     must['query_string']['fields'] = \
                         q_fields_clause(fields_to_query)
+
                 else:
                     boost = fields_to_query[field]
                     must['query_string']['fields'] = \
-                        single_field_fields_clause(field, boost)
+                        single_field_fields_clause(field, boost, constraints)
+
                 self.query['query']['bool']['must'].append(must)
 
         if 'fields' in constraints:
@@ -252,7 +260,7 @@ class SearchQuery():
             self.query['size'] = constraints['page_size']
 
         if 'sort_by' in constraints:
-            actual_field = sort_by[constraints['sort_by']]
+            actual_field = field_or_subfield[constraints['sort_by']]
             if actual_field == 'sourceResource.spatial.coordinates':
                 pin = constraints['sort_by_pin']
                 self.query['sort'] = [
