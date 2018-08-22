@@ -198,9 +198,6 @@ def facets_clause(facets_string):
     return {clean_facet_name(name): facets_for(name) for name in names}
 
 
-# TODO break out function for sort_by, as was done with facets_clause()
-
-
 class SearchQuery():
     """Elasticsearch Search API query
 
@@ -230,26 +227,8 @@ class SearchQuery():
         else:
             self.query = query_skel_search.copy()
             self.query['query'] = {'bool': {'must': []}}
-
             for field, term in fields.items():
-                must = {
-                    'query_string': {
-                        'default_operator': 'AND',
-                        'lenient': True
-                    }
-                }
-                must['query_string']['query'] = term
-
-                if field == 'q':
-                    must['query_string']['fields'] = \
-                        q_fields_clause(fields_to_query)
-
-                else:
-                    boost = fields_to_query[field]
-                    must['query_string']['fields'] = \
-                        single_field_fields_clause(field, boost, constraints)
-
-                self.query['query']['bool']['must'].append(must)
+                self.add_must_clause(field, term, constraints)
 
         if 'fields' in constraints:
             self.query['_source'] = constraints['fields'].split(',')
@@ -260,22 +239,45 @@ class SearchQuery():
             self.query['size'] = constraints['page_size']
 
         if 'sort_by' in constraints:
-            actual_field = field_or_subfield[constraints['sort_by']]
-            if actual_field == 'sourceResource.spatial.coordinates':
-                pin = constraints['sort_by_pin']
-                self.query['sort'] = [
-                    {
-                        '_geo_distance': {
-                            'sourceResource.spatial.coordinates': pin,
-                            'order': 'asc',
-                            'unit': 'mi'
-                        }
-                    }
-                ]
-            else:
-                self.query['sort'] = [
-                    {actual_field: {'order': constraints['sort_order']}},
-                    {'_score': {'order': 'desc'}}]
+            self.add_sort_clause(constraints)
 
         if 'facets' in constraints:
             self.query['aggs'] = facets_clause(constraints['facets'])
+
+    def add_must_clause(self, field, term, constraints):
+        must = {
+            'query_string': {
+                'default_operator': 'AND',
+                'lenient': True
+            }
+        }
+        must['query_string']['query'] = term
+
+        if field == 'q':
+            must['query_string']['fields'] = \
+                q_fields_clause(fields_to_query)
+
+        else:
+            boost = fields_to_query[field]
+            must['query_string']['fields'] = \
+                single_field_fields_clause(field, boost, constraints)
+
+        self.query['query']['bool']['must'].append(must)
+
+    def add_sort_clause(self, constraints):
+        actual_field = field_or_subfield[constraints['sort_by']]
+        if actual_field == 'sourceResource.spatial.coordinates':
+            pin = constraints['sort_by_pin']
+            self.query['sort'] = [
+                {
+                    '_geo_distance': {
+                        'sourceResource.spatial.coordinates': pin,
+                        'order': 'asc',
+                        'unit': 'mi'
+                    }
+                }
+            ]
+        else:
+            self.query['sort'] = [
+                {actual_field: {'order': constraints['sort_order']}},
+                {'_score': {'order': 'desc'}}]
