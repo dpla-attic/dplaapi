@@ -143,6 +143,30 @@ items_params = {
             min_length=2,
             max_length=200,
             allow_null=True),
+    'sourceResource.date.before': apistar.validators.String(
+            title='Before Date',
+            description='Return records where the timespan of the object\'s '
+                        'creation starts before this date',
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
+    'sourceResource.date.after': apistar.validators.String(
+            title='After Date',
+            description='Return records where the timespan of the object\'s '
+                        'creation ends after this date',
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
+    'sourceResource.temporal.before': apistar.validators.String(
+            title='Topic Before Date',
+            description='Return records where the timespan of the object\'s '
+                        'subject matter starts before this date',
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
+    'sourceResource.temporal.after': apistar.validators.String(
+            title='Topic After Date',
+            description='Return records where the timespan of the object\'s '
+                        'subject matter ends after this date',
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
     'sourceResource.extent': apistar.validators.String(
             title='Extent',
             description='Size or duration of ' + sr,

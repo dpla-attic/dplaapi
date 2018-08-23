@@ -191,6 +191,26 @@ def test_SearchQuery_does_geo_distance_sort():
     ]
 
 
+def test_SearchQuery_add_range_clause_before():
+    params = types.ItemsQueryType({'sourceResource.date.before': '2000'})
+    sq = search_query.SearchQuery(params)
+    assert sq.query['query']['bool']['must'][0] == {
+        'range': {
+            'sourceResource.date.begin': {'lte': '2000'}
+        }
+    }
+
+
+def test_SearchQuery_add_range_clause_after():
+    params = types.ItemsQueryType({'sourceResource.date.after': '2000'})
+    sq = search_query.SearchQuery(params)
+    assert sq.query['query']['bool']['must'][0] == {
+        'range': {
+            'sourceResource.date.end': {'gte': '2000'}
+        }
+    }
+
+
 def test_clean_facet_name_works():
     """Facet names are cleaned for use as 'aggs' object keys"""
     assert search_query.clean_facet_name('x:y:z') == 'x'

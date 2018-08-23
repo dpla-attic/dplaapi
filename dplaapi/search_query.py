@@ -5,6 +5,7 @@ dplaapi.search_query
 Elasticsearch Search API query
 """
 
+import re
 from datetime import datetime
 from apistar.exceptions import ValidationError
 from .facets import facets
@@ -115,6 +116,9 @@ field_or_subfield = {
 }
 
 
+temporal_search_field_pat = re.compile(r'(?P<field>.*)?\.(?P<modifier>.*)$')
+
+
 def q_fields_clause_items(d: dict):
     """Generator over items for a 'query_string' fields clause"""
     for item in d.items():
@@ -138,13 +142,18 @@ def single_field_fields_clause(field, boost, constraints):
         return [field_to_use]
 
 
+def is_field_related(param_name):
+    return param_name in fields_to_query or param_name == 'q' \
+        or param_name == 'ids' or param_name.endswith('.before') \
+        or param_name.endswith('.after')
+
+
 def fields_and_constraints(params):
     """Given querystring parameters, return a tuple of dicts for those that are
     record fields and those that are query constraints"""
-    fields = {k: v for (k, v) in params.items()
-              if k in fields_to_query or k == 'q' or k == 'ids'}
+    fields = {k: v for (k, v) in params.items() if is_field_related(k)}
     constraints = {k: v for (k, v) in params.items()
-                   if k not in fields_to_query and k != 'q'}
+                   if not is_field_related(k)}
     return (fields, constraints)
 
 
@@ -298,7 +307,10 @@ class SearchQuery():
             self.query = query_skel_search.copy()
             self.query['query'] = {'bool': {'must': []}}
             for field, term in fields.items():
-                self.add_must_clause(field, term, constraints)
+                if field.endswith('.before') or field.endswith('.after'):
+                    self.add_range_clause(field, term)
+                else:
+                    self.add_query_string_clause(field, term, constraints)
 
         if 'fields' in constraints:
             self.query['_source'] = constraints['fields'].split(',')
@@ -314,8 +326,8 @@ class SearchQuery():
         if 'facets' in constraints:
             self.query['aggs'] = facets_clause(constraints['facets'])
 
-    def add_must_clause(self, field, term, constraints):
-        must = {
+    def add_query_string_clause(self, field, term, constraints):
+        clause = {
             'query_string': {
                 'query': term,
                 'default_operator': 'AND',
@@ -324,15 +336,35 @@ class SearchQuery():
         }
 
         if field == 'q':
-            must['query_string']['fields'] = \
+            clause['query_string']['fields'] = \
                 q_fields_clause(fields_to_query)
 
         else:
             boost = fields_to_query[field]
-            must['query_string']['fields'] = \
+            clause['query_string']['fields'] = \
                 single_field_fields_clause(field, boost, constraints)
 
-        self.query['query']['bool']['must'].append(must)
+        self.query['query']['bool']['must'].append(clause)
+
+    def add_range_clause(self, field_w_mod, term):
+        match_obj = temporal_search_field_pat.match(field_w_mod)
+        field = match_obj.group('field')
+        modifier = match_obj.group('modifier')
+        if modifier == 'before':
+            key = "%s.begin" % field
+            clause = {
+                'range': {
+                    key: {'lte': term}
+                }
+            }
+        else:
+            key = "%s.end" % field
+            clause = {
+                'range': {
+                    key: {'gte': term}
+                }
+            }
+        self.query['query']['bool']['must'].append(clause)
 
     def add_sort_clause(self, constraints):
         actual_field = field_or_subfield[constraints['sort_by']]
