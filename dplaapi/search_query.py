@@ -5,6 +5,7 @@ dplaapi.search_query
 Elasticsearch Search API query
 """
 
+from datetime import datetime
 from apistar.exceptions import ValidationError
 from .facets import facets
 
@@ -177,19 +178,88 @@ def facets_for(field_name):
         except KeyError:
             raise ValidationError("%s is not a facetable field" % field_name)
         if facet_type == 'date_histogram':
-            # TODO: check if the `platform' app lets you specify by year,
-            # month, decade, etc. I think it may, though this is
-            # undocumented.
-            return {
-                'date_histogram': {
-                    'field': actual_field,
-                    'interval': 'year',
-                    'order': {'_key': 'desc'},
-                    'min_doc_count': 2
-                }
-            }
+            interval = date_facet_interval(field_name)
+            if interval in ['month', 'year']:
+                return date_histogram_agg(field_name, actual_field, interval)
+            else:
+                # We lie.  We really have to use a 'range' aggregation for
+                # month, decade, and century, but 'date_histogram' was
+                # always the term used in the response, since before we
+                # upgraded to Elasticsearch 6 and the API was ported over to
+                # this application.
+                return date_range_agg(actual_field, interval)
         else:
             return {'terms': {'field': actual_field}}
+
+
+def date_histogram_agg(facet_name, actual_field, interval):
+    # The minimum date in the filter 'range' below keeps us from getting
+    # HTTP 503 errors from Elasticsearch due to using too many aggregation
+    # buckets (more than 5000).
+    min_date_filter = {
+        'month': 'now-416y',
+        'year': 'now-2000y'
+    }
+    key_format = {
+        'month': 'yyyy-MM',
+        'year': 'yyyy'
+    }
+    return {
+        'filter': {
+            'range': {
+                actual_field: {
+                    'gte': min_date_filter[interval],
+                    'lte': 'now'
+                }
+            }
+        },
+        'aggs': {
+            facet_name: {
+                'date_histogram': {
+                    'field': actual_field,
+                    'interval': interval,
+                    'format': key_format[interval],
+                    'min_doc_count': 1,
+                    'order': {'_key': 'desc'}
+                }
+            }
+        }
+    }
+
+
+def date_range_agg(actual_field, interval):
+    span = {'decade': 10, 'century': 100}
+    y_first = int(datetime.now().year / span[interval]) * span[interval]
+    y_last = y_first + span[interval] - 1
+    first_and_last = {
+        'decade': ((y_first - i, y_last - i)
+                   for i in range(0, 500, 10)),    # last 500 years
+        'century': ((y_first - i, y_last - i)
+                    for i in range(0, 5000, 100))  # last 5000 years
+    }
+    ranges = [{'from': str(x[0]), 'to': str(x[1])}
+              for x in first_and_last[interval]]
+    return {
+        'date_range': {
+            'field': actual_field,
+            'ranges': ranges,
+            'format': 'yyyy'
+            # 'order' is not a valid property for a 'range' aggregation.
+        }
+    }
+
+
+def date_facet_interval(facet_name):
+    """Return the date histogram interval for the given facet name
+
+    The default is "year".
+    """
+    parts = facet_name.rpartition('.')
+    interval = parts[2]
+    if interval in ['month', 'year', 'decade', 'century']:
+        return interval
+    else:
+        return 'year'
 
 
 def facets_clause(facets_string):
@@ -247,11 +317,11 @@ class SearchQuery():
     def add_must_clause(self, field, term, constraints):
         must = {
             'query_string': {
+                'query': term,
                 'default_operator': 'AND',
                 'lenient': True
             }
         }
-        must['query_string']['query'] = term
 
         if field == 'q':
             must['query_string']['fields'] = \

@@ -3,7 +3,6 @@ import apistar
 import logging
 import requests
 import dplaapi
-import time
 import re
 from dplaapi.types import ItemsQueryType
 import dplaapi.search_query
@@ -45,7 +44,7 @@ def items(ids_or_queryparams):
         raise ServerError('Unexpected error')
 
 
-def formatted_facets(es6_facets):
+def formatted_facets(es6_aggregations):
     """Return list of facets that comply with our legacy format
 
     The v2 API is legacy, and the DPLA API specification is for facets to look
@@ -61,29 +60,49 @@ def formatted_facets(es6_facets):
     }
     # facets[k][1] is the 2nd element of the tuple that gives the type of
     # facet. See `facets.facets'.
-    return {k: func[facets[k][1]](v) for k, v in es6_facets.items()}
+    return {k: func[facets[k][1]](v) for k, v in es6_aggregations.items()}
 
 
-def geo_facets(dict_with_buckets):
+def geo_facets(this_agg):
     ranges = [{'from': b['from'], 'to': b['to'], 'count': b['doc_count']}
-              for b in dict_with_buckets['buckets']]
+              for b in this_agg['buckets']]
     return {'_type': 'geo_distance', 'ranges': ranges}
 
 
-def date_facets(dict_with_buckets):
-    entries = [{'time': date_formatted(b['key']), 'count': b['doc_count']}
-               for b in dict_with_buckets['buckets']]
+def date_facets(this_agg):
+    entries = [{'time': bucket_date(b), 'count': b['doc_count']}
+               for b in dict_with_date_buckets(this_agg)]
     return {'_type': 'date_histogram', 'entries': entries}
 
 
-def date_formatted(es6_time_value):
-    seconds_since_epoch = es6_time_value / 1000
-    return time.strftime('%Y-%m-%d', time.gmtime(seconds_since_epoch))
+def dict_with_date_buckets(a_dict):
+    """Given an Elasticsearch aggregation, return the 'buckets' part.
+
+    Also sort it in descending order if it's a range facet (decade, century)
+    because Elasticsearch always returns those in ascending order.
+    """
+    if 'buckets' in a_dict:
+        buckets = a_dict['buckets']
+        buckets.sort(key=lambda x: -x['from'])
+        return buckets
+    else:
+        for k, v in a_dict.items():
+            if isinstance(v, dict) and 'buckets' in v:
+                return a_dict[k]['buckets']
+    raise Exception('Should not happen: aggregations dict from Elasticsearch '
+                    'does not have an aggregation with "buckets" array')
 
 
-def term_facets(dict_with_buckets):
+def bucket_date(a_dict):
+    if 'from_as_string' in a_dict:
+        return a_dict['from_as_string']
+    else:
+        return a_dict['key_as_string']
+
+
+def term_facets(this_agg):
     terms = [{'term': b['key'], 'count': b['doc_count']}
-             for b in dict_with_buckets['buckets']]
+             for b in this_agg['buckets']]
     return {'_type': 'terms', 'terms': terms}
 
 

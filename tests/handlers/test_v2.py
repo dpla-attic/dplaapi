@@ -41,12 +41,27 @@ es6_facets = {
             }
         ]
     },
-    'sourceResource.date.begin': {
-        'buckets': [
+    "sourceResource.date.begin.year": {
+        "doc_count": 14,
+        "sourceResource.date.begin.year": {
+            "buckets": [
+                {
+                    "key_as_string": "1947",
+                    "key": -725846400000,
+                    "doc_count": 1
+                }
+            ]
+        }
+    },
+    "sourceResource.date.begin.decade": {
+        "buckets": [
             {
-                'key_as_string': '2018-01-01T00:00:00.000Z',
-                'key': 1514782800000,
-                'doc_count': 335
+                "key": "1520-1529",
+                "from": -14200704000000,
+                "from_as_string": "1520",
+                "to": -13916620800000,
+                "to_as_string": "1529",
+                "doc_count": 10
             }
         ]
     },
@@ -254,15 +269,11 @@ def test_geo_facets():
 
 def test_date_facets():
     result = v2_handlers.date_facets(
-        es6_facets['sourceResource.date.begin'])
+        es6_facets['sourceResource.date.begin.year'])
     assert result == {
         '_type': 'date_histogram',
-        'entries': [{'time': '2018-01-01', 'count': 335}]
+        'entries': [{'time': '1947', 'count': 1}]
     }
-
-
-def test_date_formatted():
-    assert v2_handlers.date_formatted(788918400000) == '1995-01-01'
 
 
 def test_term_facets():
@@ -292,12 +303,21 @@ def test_formatted_facets():
                 }
             ]
         },
-        'sourceResource.date.begin': {
+        'sourceResource.date.begin.year': {
             '_type': 'date_histogram',
             'entries': [
                 {
-                    'time': '2018-01-01',
-                    'count': 335
+                    'time': '1947',
+                    'count': 1
+                }
+            ]
+        },
+        'sourceResource.date.begin.decade': {
+            '_type': 'date_histogram',
+            'entries': [
+                {
+                    'time': '1520',
+                    'count': 10
                 }
             ]
         },
@@ -312,3 +332,52 @@ def test_formatted_facets():
             ]
         }
     }
+
+
+def test_dict_with_date_buckets_works_with_ranges_aggregation():
+    """It picks the 'buckets' out of an aggregation response for a range
+    aggregation"""
+    es_result_agg = {
+        'buckets': [
+            {
+                'key': '1520-1529',
+                'from': -14200704000000,
+                'from_as_string': '1520',
+                'to': -13916620800000,
+                'to_as_string': '1529',
+                'doc_count': 0
+            }
+        ]
+    }
+    result = v2_handlers.dict_with_date_buckets(es_result_agg)
+    assert type(result) == list
+
+
+def test_dict_with_date_buckets_works_with_histogram_aggregation():
+    """It picks the 'buckets' out of an aggregation response for a histogram
+    aggregation with our 'filter' clause"""
+    es_result_agg = {
+        'doc_count': 14,
+        'sourceResource.date.begin.year': {
+            'buckets': [
+                {
+                    'key_as_string': '1947',
+                    'key': -725846400000,
+                    'doc_count': 1
+                }
+            ]
+        }
+    }
+    result = v2_handlers.dict_with_date_buckets(es_result_agg)
+    assert type(result) == list
+
+
+def test_dict_with_date_buckets_raises_exception_with_weird_aggregation():
+    """It raises an Exception if it gets weird data without a 'buckets'
+    property"""
+    es_result_agg = {
+        'doc_count': 14,
+        'x': 'x'
+    }
+    with pytest.raises(Exception):
+        v2_handlers.dict_with_date_buckets(es_result_agg)

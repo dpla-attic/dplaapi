@@ -47,6 +47,7 @@ setup(name='dplaapi',
           'pytest~=3.7.1',
           'pytest-asyncio~=0.9.0',
           'pytest-cov~=2.5.1',
+          'pytest-mock~=1.10.0',
           'flake8~=3.5.0',
           'coverage~=4.5.1',
           'codacy-coverage~=1.3.11'

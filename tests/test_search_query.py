@@ -230,13 +230,53 @@ def test_facets_for_handles_text_field():
 
 def test_facets_for_handles_date_field():
     assert search_query.facets_for('sourceResource.date.begin') == {
-        'date_histogram': {
-            'field': 'sourceResource.date.begin',
-            'interval': 'year',
-            'min_doc_count': 2,
-            'order': {'_key': 'desc'}
+        'filter': {
+            'range': {
+                'sourceResource.date.begin': {
+                    'gte': 'now-2000y',
+                    'lte': 'now'
+                }
+            }
+        },
+        'aggs': {
+            'sourceResource.date.begin': {
+                'date_histogram': {
+                    'field': 'sourceResource.date.begin',
+                    'interval': 'year',
+                    'format': 'yyyy',
+                    'min_doc_count': 1,
+                    'order': {'_key': 'desc'}
+                }
+            }
         }
     }
+
+
+def test_facets_for_histogram_for_month_or_year(mocker):
+    """A date histogram aggregation is produced for month or year modifier"""
+    mocker.patch('dplaapi.search_query.date_histogram_agg')
+    field = 'sourceResource.date.begin'
+    for interval in ['month', 'year']:
+        facet = "%s.%s" % (field, interval)
+        search_query.facets_for(facet)
+        search_query.date_histogram_agg.assert_called_once_with(
+            facet, field, interval)
+        search_query.date_histogram_agg.reset_mock()
+    # Also for no modifier, which should default to "year" ...
+    search_query.facets_for(field)
+    search_query.date_histogram_agg.assert_called_once_with(
+        field, field, 'year')
+
+
+def test_facets_for_histogram_for_decade_or_century(mocker):
+    """A date range aggregation is produced for decade or century modifier"""
+    mocker.patch('dplaapi.search_query.date_range_agg')
+    for interval in ['decade', 'century']:
+        field = 'sourceResource.date.begin'
+        facet = "%s.%s" % (field, interval)
+        search_query.facets_for(facet)
+        search_query.date_range_agg.assert_called_once_with(field, interval)
+        search_query.date_range_agg.reset_mock()
 
 
 def test_SearchQuery_facets_for_handles_coordinates_field():
@@ -267,3 +307,135 @@ def test_SearchQuery_facets_for_handles_coordinates_field():
 def test_facets_for_raises_exception_for_bad_field_name():
     with pytest.raises(ValidationError):
         search_query.facets_for('x')
+
+
+def test_date_facet_interval_w_no_modifier():
+    """With no modifier, it returns 'year'"""
+    arg = 'sourceResource.date.begin'
+    result = search_query.date_facet_interval(arg)
+    assert result == 'year'
+
+
+def test_date_facet_interval_w_year_modifier():
+    """With '.year' modifier, it returns 'year'"""
+    arg = 'sourceResource.date.begin.year'
+    result = search_query.date_facet_interval(arg)
+    assert result == 'year'
+
+
+def test_date_facet_interval_w_other_modifier():
+    """With '.month' modifier, it returns 'month', etc."""
+    for interval in ['month', 'decade', 'century']:
+        arg = "sourceResource.date.begin.%s" % interval
+        result = search_query.date_facet_interval(arg)
+        assert result == interval
+
+
+def test_date_range_agg_for_decade():
+    """With 'decade' interval, it produces a correct facet clause"""
+    # This test will have to be revised in 2020.
+    field = 'sourceResource.date.begin'
+    interval = 'decade'
+    result = search_query.date_range_agg(field, interval)
+    ranges = [
+        {'from': '2010', 'to': '2019'}, {'from': '2000', 'to': '2009'},
+        {'from': '1990', 'to': '1999'}, {'from': '1980', 'to': '1989'},
+        {'from': '1970', 'to': '1979'}, {'from': '1960', 'to': '1969'},
+        {'from': '1950', 'to': '1959'}, {'from': '1940', 'to': '1949'},
+        {'from': '1930', 'to': '1939'}, {'from': '1920', 'to': '1929'},
+        {'from': '1910', 'to': '1919'}, {'from': '1900', 'to': '1909'},
+        {'from': '1890', 'to': '1899'}, {'from': '1880', 'to': '1889'},
+        {'from': '1870', 'to': '1879'}, {'from': '1860', 'to': '1869'},
+        {'from': '1850', 'to': '1859'}, {'from': '1840', 'to': '1849'},
+        {'from': '1830', 'to': '1839'}, {'from': '1820', 'to': '1829'},
+        {'from': '1810', 'to': '1819'}, {'from': '1800', 'to': '1809'},
+        {'from': '1790', 'to': '1799'}, {'from': '1780', 'to': '1789'},
+        {'from': '1770', 'to': '1779'}, {'from': '1760', 'to': '1769'},
+        {'from': '1750', 'to': '1759'}, {'from': '1740', 'to': '1749'},
+        {'from': '1730', 'to': '1739'}, {'from': '1720', 'to': '1729'},
+        {'from': '1710', 'to': '1719'}, {'from': '1700', 'to': '1709'},
+        {'from': '1690', 'to': '1699'}, {'from': '1680', 'to': '1689'},
+        {'from': '1670', 'to': '1679'}, {'from': '1660', 'to': '1669'},
+        {'from': '1650', 'to': '1659'}, {'from': '1640', 'to': '1649'},
+        {'from': '1630', 'to': '1639'}, {'from': '1620', 'to': '1629'},
+        {'from': '1610', 'to': '1619'}, {'from': '1600', 'to': '1609'},
+        {'from': '1590', 'to': '1599'}, {'from': '1580', 'to': '1589'},
+        {'from': '1570', 'to': '1579'}, {'from': '1560', 'to': '1569'},
+        {'from': '1550', 'to': '1559'}, {'from': '1540', 'to': '1549'},
+        {'from': '1530', 'to': '1539'}, {'from': '1520', 'to': '1529'}]
+    assert result == {
+        'date_range': {
+            'field': 'sourceResource.date.begin',
+            'ranges': ranges,
+            'format': 'yyyy'
+        }
+    }
+
+
+def test_date_range_agg_for_century():
+    """With 'century' interval, it produces a correct facet clause"""
+    field = 'sourceResource.date.begin'
+    interval = 'century'
+    result = search_query.date_range_agg(field, interval)
+    ranges = [
+        {'from': '2000', 'to': '2099'}, {'from': '1900', 'to': '1999'},
+        {'from': '1800', 'to': '1899'}, {'from': '1700', 'to': '1799'},
+        {'from': '1600', 'to': '1699'}, {'from': '1500', 'to': '1599'},
+        {'from': '1400', 'to': '1499'}, {'from': '1300', 'to': '1399'},
+        {'from': '1200', 'to': '1299'}, {'from': '1100', 'to': '1199'},
+        {'from': '1000', 'to': '1099'}, {'from': '900', 'to': '999'},
+        {'from': '800', 'to': '899'}, {'from': '700', 'to': '799'},
+        {'from': '600', 'to': '699'}, {'from': '500', 'to': '599'},
+        {'from': '400', 'to': '499'}, {'from': '300', 'to': '399'},
+        {'from': '200', 'to': '299'}, {'from': '100', 'to': '199'},
+        {'from': '0', 'to': '99'}, {'from': '-100', 'to': '-1'},
+        {'from': '-200', 'to': '-101'}, {'from': '-300', 'to': '-201'},
+        {'from': '-400', 'to': '-301'}, {'from': '-500', 'to': '-401'},
+        {'from': '-600', 'to': '-501'}, {'from': '-700', 'to': '-601'},
+        {'from': '-800', 'to': '-701'}, {'from': '-900', 'to': '-801'},
+        {'from': '-1000', 'to': '-901'}, {'from': '-1100', 'to': '-1001'},
+        {'from': '-1200', 'to': '-1101'}, {'from': '-1300', 'to': '-1201'},
+        {'from': '-1400', 'to': '-1301'}, {'from': '-1500', 'to': '-1401'},
+        {'from': '-1600', 'to': '-1501'}, {'from': '-1700', 'to': '-1601'},
+        {'from': '-1800', 'to': '-1701'}, {'from': '-1900', 'to': '-1801'},
+        {'from': '-2000', 'to': '-1901'}, {'from': '-2100', 'to': '-2001'},
+        {'from': '-2200', 'to': '-2101'}, {'from': '-2300', 'to': '-2201'},
+        {'from': '-2400', 'to': '-2301'}, {'from': '-2500', 'to': '-2401'},
+        {'from': '-2600', 'to': '-2501'}, {'from': '-2700', 'to': '-2601'},
+        {'from': '-2800', 'to': '-2701'}, {'from': '-2900', 'to': '-2801'}]
+    assert result == {
+        'date_range': {
+            'field': 'sourceResource.date.begin',
+            'ranges': ranges,
+            'format': 'yyyy'
+        }
+    }
+
+
+def test_date_histogram_agg_for_month():
+    """With 'month', it produces the correct filter & date_histogram"""
+    facet = 'sourceResource.date.begin.month'
+    actual_field = 'sourceResource.date.begin'
+    interval = 'month'
+    result = search_query.date_histogram_agg(facet, actual_field, interval)
+    assert result == {
+        'filter': {
+            'range': {
+                'sourceResource.date.begin': {
+                    'gte': 'now-416y',
+                    'lte': 'now'
+                }
+            }
+        },
+        'aggs': {
+            'sourceResource.date.begin.month': {
+                'date_histogram': {
+                    'field': 'sourceResource.date.begin',
+                    'interval': 'month',
+                    'format': 'yyyy-MM',
+                    'min_doc_count': 1,
+                    'order': {'_key': 'desc'}
+                }
+            }
+        }
+    }
