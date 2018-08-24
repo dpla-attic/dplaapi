@@ -78,6 +78,12 @@ items_params = {
                         'by anything else',
             enum=['true'],
             allow_null=True),
+    'callback': apistar.validators.String(
+            title='JSONP Callback',
+            description='JSONP callback function name',
+            min_length=1,
+            max_length=100,
+            allow_null=True),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',
@@ -406,6 +412,16 @@ items_params = {
             min_length=2,
             max_length=200,
             pattern=url_match_pat,
+            allow_null=True)
+}
+
+
+specific_items_params = {
+    'callback': items_params['callback'],
+    'ids': apistar.validators.String(
+            title='ID or IDs',
+            description='DPLA Record ID or IDs',
+            pattern=r'^[a-f0-9]{32}(?:,[a-f0-9]{32}){,49}$',
             allow_null=True)
 }
 

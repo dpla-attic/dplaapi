@@ -1,9 +1,10 @@
 
-import apistar
+from apistar import exceptions, http
 import logging
 import requests
 import dplaapi
 import re
+import json
 from dplaapi.types import ItemsQueryType
 import dplaapi.search_query
 from dplaapi.exceptions import ServerError
@@ -14,28 +15,25 @@ from dplaapi.facets import facets
 log = logging.getLogger(__name__)
 
 
-def items(ids_or_queryparams):
-    """Get "item" records"""
+def items(params):
+    """Get "item" records
+
+    Arguments:
+    - params: Dict of querystring or path parameters
+    """
     try:
-        if isinstance(ids_or_queryparams, list):
-            goodparams = {'ids': ids_or_queryparams}
-        else:
-            goodparams = ItemsQueryType({k: v for [k, v]
-                                         in ids_or_queryparams})
-        sq = SearchQuery(goodparams)
+        sq = SearchQuery(params)
         log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
         resp.raise_for_status()
         result = resp.json()
-        return (result, goodparams)
-    except apistar.exceptions.ValidationError as e:
-        raise apistar.exceptions.BadRequest(e.detail)
+        return result
     except requests.exceptions.HTTPError as e:
         if resp.status_code == 400:
             # Assume that a Bad Request is the user's fault and we're getting
             # this because the query doesn't parse due to a bad search term
             # parameter.  For example "this AND AND that".
-            raise apistar.exceptions.BadRequest('Invalid query')
+            raise exceptions.BadRequest('Invalid query')
         else:
             log.exception('Error querying Elasticsearch')
             raise ServerError('Backend search operation failed')
@@ -106,9 +104,23 @@ def term_facets(this_agg):
     return {'_type': 'terms', 'terms': terms}
 
 
-async def multiple_items(params: apistar.http.QueryParams) -> dict:
-    (result, goodparams) = items(params)
-    return {
+def response_object(data, params):
+    if 'callback' in params:
+        headers = {'Content-Type': 'application/javascript'}
+        content = "%s(%s)" % (params['callback'], json.dumps(data))
+        return http.Response(content=content, headers=headers)
+    else:
+        return http.JSONResponse(data)
+
+
+async def multiple_items(
+        params: http.QueryParams) -> http.JSONResponse:
+    try:
+        goodparams = ItemsQueryType({k: v for [k, v] in params})
+    except exceptions.ValidationError as e:
+        raise exceptions.BadRequest(e.detail)
+    result = items(goodparams)
+    rv = {
         'count': result['hits']['total'],
         'start': (int(goodparams['page']) - 1)
                   * int(goodparams['page_size'])               # noqa: E131
@@ -117,16 +129,23 @@ async def multiple_items(params: apistar.http.QueryParams) -> dict:
         'docs': [hit['_source'] for hit in result['hits']['hits']],
         'facets': formatted_facets(result.get('aggregations', {}))
     }
+    return response_object(rv, goodparams)
 
 
-async def specific_item(id_or_ids: str) -> dict:
+async def specific_item(id_or_ids: str,
+                        params: http.QueryParams) -> dict:
+    for k in list(params):        # list of tuples
+        if k[0] != 'callback':
+            raise exceptions.BadRequest('Unrecognized parameter %s' % k[0])
     ids = id_or_ids.split(',')
     for the_id in ids:
         if not re.match(r'[a-f0-9]{32}$', the_id):
-            raise apistar.exceptions.BadRequest("Bad ID: %s" % the_id)
-    (result, notused) = items(ids)
-    del(notused)
-    return {
+            raise exceptions.BadRequest("Bad ID: %s" % the_id)
+    goodparams = {k: v for k, v in list(params)}
+    goodparams.update({'ids': ids})
+    result = items(goodparams)
+    rv = {
         'count': result['hits']['total'],
         'docs': [hit['_source'] for hit in result['hits']['hits']]
     }
+    return response_object(rv, goodparams)

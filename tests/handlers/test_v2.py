@@ -3,14 +3,14 @@
 
 import pytest
 import requests
+import json
 from apistar import test
 from apistar.exceptions import BadRequest
-from apistar.http import QueryParams
+from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
 from dplaapi import search_query
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.exceptions import ServerError
-from dplaapi.types import ItemsQueryType
 
 
 client = test.TestClient(app)
@@ -135,8 +135,10 @@ async def test_items_formats_response_metadata(monkeypatch):
     """items() assembles the correct response metadata"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     params = QueryParams({'q': 'abcd'})
-    result = await v2_handlers.multiple_items(params)
-    # See minimal_good_resonse above
+    response_obj = await v2_handlers.multiple_items(params)
+    result = json.loads(response_obj.content)
+
+    # See minimal_good_response above
     assert result['count'] == 1
     assert result['start'] == 1   # page 1; the default
     assert result['limit'] == 10  # the default
@@ -201,34 +203,21 @@ async def test_items_handles_query_parameters(monkeypatch):
     await v2_handlers.multiple_items(params)
 
 
-@pytest.mark.asyncio
-async def test_items_handles_string_parameter(monkeypatch):
-    """items() makes a good `goodparams' dict from a single string parameter"""
-    def mock_searchquery(params_to_check):
-        assert params_to_check == {'id': '13283cd2bd45ef385aae962b144c7e6a'}
-        return {}
-    monkeypatch.setattr(search_query, 'SearchQuery', mock_searchquery)
-    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    record_id = '13283cd2bd45ef385aae962b144c7e6a'
-    await v2_handlers.specific_item(record_id)
-
-
 def test_multiple_items_path(monkeypatch):
-    """/v2/items calls items() with query parameters object"""
+    """/v2/items calls items() with dictionary"""
     def mock_items_multiple(arg):
-        assert isinstance(arg, QueryParams)
-        return (minimal_good_response, ItemsQueryType())
+        assert isinstance(arg, dict)
+        return minimal_good_response
     monkeypatch.setattr(v2_handlers, 'items', mock_items_multiple)
     client.get('/v2/items')
 
 
 def test_specific_item_path(monkeypatch):
-    """/v2/items/{id} calls items() with a string"""
-    def mock_items_single(arg):
-        assert isinstance(arg, list)
-        return (minimal_good_response,
-                {'ids': '13283cd2bd45ef385aae962b144c7e6a'})
-    monkeypatch.setattr(v2_handlers, 'items', mock_items_single)
+    """/v2/items/{id} calls items() with correct 'ids' parameter"""
+    def mock_items(arg):
+        assert arg == {'ids': ['13283cd2bd45ef385aae962b144c7e6a']}
+        return minimal_good_response
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
 
 
@@ -238,24 +227,42 @@ async def test_specific_item_handles_multiple_ids(monkeypatch):
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
 
     def mock_items(arg):
-        assert len(arg) == 2
-        return (minimal_good_response, {'ids': ids})
+        assert len(arg['ids']) == 2
+        return minimal_good_response
 
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
-    await v2_handlers.specific_item(ids)
+    await v2_handlers.specific_item(ids, QueryParams({}))
 
 
 @pytest.mark.asyncio
 async def test_specific_item_rejects_bad_ids_1():
     with pytest.raises(BadRequest):
-        await v2_handlers.specific_item('x')
+        await v2_handlers.specific_item('x', QueryParams({}))
 
 
 @pytest.mark.asyncio
 async def test_specific_item_rejects_bad_ids_2():
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867'
     with pytest.raises(BadRequest):
-        await v2_handlers.specific_item(ids)
+        await v2_handlers.specific_item(ids, QueryParams({}))
+
+
+@pytest.mark.asyncio
+async def test_specific_item_accepts_callback_querystring_param(monkeypatch):
+
+    def mock_items(arg):
+        return minimal_good_response
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
+                                    QueryParams({'callback': 'f'}))
+
+
+@pytest.mark.asyncio
+async def test_specific_item_rejects_bad_querystring_param():
+    with pytest.raises(BadRequest):
+        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
+                                        QueryParams({'page_size': 1}))
 
 
 def test_geo_facets():
@@ -381,3 +388,20 @@ def test_dict_with_date_buckets_raises_exception_with_weird_aggregation():
     }
     with pytest.raises(Exception):
         v2_handlers.dict_with_date_buckets(es_result_agg)
+
+
+def test_response_object_returns_JSONResponse_for_typical_request():
+    """It returns an apistar.http.JSONResponse object for a typical request,
+    without a JSONP callback"""
+    rv = v2_handlers.response_object({}, {})
+    assert isinstance(rv, JSONResponse)
+
+
+def test_response_object_returns_correct_Response_for_JSONP_request():
+    """It returns an apistar.http.JSONResponse object for a typical request,
+    without a JSONP callback"""
+    rv = v2_handlers.response_object({}, {'callback': 'f'})
+    assert isinstance(rv, Response)
+    headers = {k: v for k, v in rv.headers}
+    assert headers['content-type'] == 'application/javascript'
+    assert rv.content == b'f({})'

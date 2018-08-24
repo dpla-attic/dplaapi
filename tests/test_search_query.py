@@ -23,6 +23,24 @@ def test_SearchQuery_produces_bool_query_for_query_terms():
     assert 'match_all' not in sq.query['query']
 
 
+def test_SearchQuery_produces_terms_query_with_ids():
+    """If given an 'ids' parameter, SearchQuery produces a 'terms' query with
+    a list of the IDs"""
+    params = {
+        'ids': [
+            '13283cd2bd45ef385aae962b144c7e6a',
+            '00000062461c867a39cac531e13a48c1'
+        ]
+    }
+    sq = search_query.SearchQuery(params)
+    assert sq.query['query']['terms'] == {
+        'id': [
+            '13283cd2bd45ef385aae962b144c7e6a',
+            '00000062461c867a39cac531e13a48c1'
+        ]
+    }
+
+
 def test_query_string_clause_has_all_correct_fields_for_q_query():
     """A 'q=' query hits all of the correct fields w field boosts"""
     params = types.ItemsQueryType({'q': 'test'})
