@@ -26,7 +26,7 @@ def items(params):
     try:
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
         resp.raise_for_status()
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         if resp.status_code == 400:
             # Assume that a Bad Request is the user's fault and we're getting
             # this because the query doesn't parse due to a bad search term
