@@ -3,7 +3,7 @@
 A web API for querying the
 [Digital Public Library of America's](https://dp.la/) metadata.
 
-[![Build Status](https://travis-ci.org/dpla/dplaapi.svg?branch=master)](https://travis-ci.org/dpla/dplaapi) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a8ed2faf8fdd4ce287e8d964aa3a9320)](https://www.codacy.com/project/dpla/dplaapi/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dpla/dplaapi&amp;utm_campaign=Badge_Grade_Dashboard) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/a8ed2faf8fdd4ce287e8d964aa3a9320)](https://www.codacy.com/project/dpla/dplaapi/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dpla/dplaapi&amp;utm_campaign=Badge_Coverage_Dashboard)
+[![Build Status](https://travis-ci.org/dpla/dplaapi.svg?branch=master)](https://travis-ci.org/dpla/dplaapi) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a8ed2faf8fdd4ce287e8d964aa3a9320)](https://www.codacy.com/app/dpla/dplaapi?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dpla/dplaapi&amp;utm_campaign=Badge_Grade) [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/a8ed2faf8fdd4ce287e8d964aa3a9320)](https://www.codacy.com/app/dpla/dplaapi?utm_source=github.com&utm_medium=referral&utm_content=dpla/dplaapi&utm_campaign=Badge_Coverage)
 
 ## Installation and Execution
 
