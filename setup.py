@@ -10,9 +10,9 @@ import sys
 import ast
 from setuptools import setup, find_packages
 
-if sys.version_info.major != 3 and sys.version_info.minor != 7 \
-        and sys.version_info.micro != 0:
-    print('Python 3.7.0 required.', file=sys.stderr)
+if sys.version_info.major != 3 and sys.version_info.minor != 6 \
+        and sys.version_info.micro != 6:
+    print('Python 3.6.6 required.', file=sys.stderr)
     exit(1)
 
 _version_re = re.compile(r'__version__\s+=\s+(.*)')
