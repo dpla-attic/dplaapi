@@ -21,25 +21,12 @@ def items(params):
     Arguments:
     - params: Dict of querystring or path parameters
     """
-    try:
-        sq = SearchQuery(params)
-        log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
-        resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
-        resp.raise_for_status()
-        result = resp.json()
-        return result
-    except requests.exceptions.HTTPError as e:
-        if resp.status_code == 400:
-            # Assume that a Bad Request is the user's fault and we're getting
-            # this because the query doesn't parse due to a bad search term
-            # parameter.  For example "this AND AND that".
-            raise exceptions.BadRequest('Invalid query')
-        else:
-            log.exception('Error querying Elasticsearch')
-            raise ServerError('Backend search operation failed')
-    except Exception as e:
-        log.exception('Unexpected error')
-        raise ServerError('Unexpected error')
+    sq = SearchQuery(params)
+    log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
+    resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
+    resp.raise_for_status()
+    result = resp.json()
+    return result
 
 
 def formatted_facets(es6_aggregations):
@@ -114,38 +101,64 @@ def response_object(data, params):
 
 
 async def multiple_items(
-        params: http.QueryParams) -> http.JSONResponse:
+            params: http.QueryParams) -> http.JSONResponse:
     try:
         goodparams = ItemsQueryType({k: v for [k, v] in params})
+        result = items(goodparams)
+        rv = {
+            'count': result['hits']['total'],
+            'start': (int(goodparams['page']) - 1)
+                      * int(goodparams['page_size'])               # noqa: E131
+                      + 1,                                         # noqa: E131
+            'limit': int(goodparams['page_size']),
+            'docs': [hit['_source'] for hit in result['hits']['hits']],
+            'facets': formatted_facets(result.get('aggregations', {}))
+        }
+        return response_object(rv, goodparams)
+
+    except exceptions.BadRequest:
+        raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)
-    result = items(goodparams)
-    rv = {
-        'count': result['hits']['total'],
-        'start': (int(goodparams['page']) - 1)
-                  * int(goodparams['page_size'])               # noqa: E131
-                  + 1,                                         # noqa: E131
-        'limit': int(goodparams['page_size']),
-        'docs': [hit['_source'] for hit in result['hits']['hits']],
-        'facets': formatted_facets(result.get('aggregations', {}))
-    }
-    return response_object(rv, goodparams)
+    except requests.exceptions.HTTPError as e:
+        if resp.status_code == 400:
+            # Assume that a Bad Request is the user's fault and we're getting
+            # this because the query doesn't parse due to a bad search term
+            # parameter.  For example "this AND AND that".
+            raise exceptions.BadRequest('Invalid query')
+        else:
+            log.exception('Error querying Elasticsearch')
+            raise ServerError('Backend search operation failed')
+    except Exception as e:
+        log.exception('Unexpected error')
+        raise ServerError('Unexpected error')
 
 
 async def specific_item(id_or_ids: str,
                         params: http.QueryParams) -> dict:
-    for k in list(params):        # list of tuples
-        if k[0] != 'callback':
-            raise exceptions.BadRequest('Unrecognized parameter %s' % k[0])
-    ids = id_or_ids.split(',')
-    for the_id in ids:
-        if not re.match(r'[a-f0-9]{32}$', the_id):
-            raise exceptions.BadRequest("Bad ID: %s" % the_id)
-    goodparams = {k: v for k, v in list(params)}
-    goodparams.update({'ids': ids})
-    result = items(goodparams)
-    rv = {
-        'count': result['hits']['total'],
-        'docs': [hit['_source'] for hit in result['hits']['hits']]
-    }
-    return response_object(rv, goodparams)
+    try:
+        for k in list(params):        # list of tuples
+            if k[0] != 'callback':
+                raise exceptions.BadRequest('Unrecognized parameter %s' % k[0])
+        ids = id_or_ids.split(',')
+        for the_id in ids:
+            if not re.match(r'[a-f0-9]{32}$', the_id):
+                raise exceptions.BadRequest("Bad ID: %s" % the_id)
+        goodparams = {k: v for k, v in list(params)}
+        goodparams.update({'ids': ids})
+        result = items(goodparams)
+        rv = {
+            'count': result['hits']['total'],
+            'docs': [hit['_source'] for hit in result['hits']['hits']]
+        }
+        return response_object(rv, goodparams)
+    except exceptions.BadRequest:
+        raise
+    except exceptions.ValidationError as e:
+        raise exceptions.BadRequest(e.detail)
+    except requests.exceptions.HTTPError as e:
+        log.exception('Error querying Elasticsearch')
+        raise ServerError('Backend search operation failed')
+    except Exception as e:
+        log.exception('Unexpected error')
+        raise ServerError('Unexpected error')
