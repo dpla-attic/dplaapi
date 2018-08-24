@@ -9,5 +9,6 @@ clean:
 	test "x${VIRTUAL_ENV}" != "x" && echo "Type 'deactivate' to exit venv." \
 		|| true
 
-zip:
-	zip dplaapi.zip -x '.git/*' -r * .[^.]*
+zip: clean
+	zip dplaapi.zip -x '.git/*' -x '.gitignore' -x '.codacy.yml' \
+		-x '.travis.yml' -x 'tests/*' -r * .[^.]*
