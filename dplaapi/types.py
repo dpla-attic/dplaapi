@@ -143,6 +143,18 @@ items_params = {
             min_length=2,
             max_length=200,
             allow_null=True),
+    'sourceResource.date.begin': apistar.validators.String(
+            title='Beginning of Object Creation Date Range',
+            description='Beginning of the date range when the %s was '
+                        'created' % sr,
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
+    'sourceResource.date.end': apistar.validators.String(
+            title='End of Object Creation Date Range',
+            description='End of the date range when the %s was '
+                        'created' % sr,
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
     'sourceResource.date.before': apistar.validators.String(
             title='Before Date',
             description='Return records where the timespan of the object\'s '
@@ -153,6 +165,18 @@ items_params = {
             title='After Date',
             description='Return records where the timespan of the object\'s '
                         'creation ends after this date',
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
+    'sourceResource.temporal.begin': apistar.validators.String(
+            title='Beginning of Topic Date Range',
+            description='Beginning of the date range that the %s is '
+                        'about ' % sr,
+            pattern=r'^\d+(?:-\d{2}){,2}$',
+            allow_null=True),
+    'sourceResource.temporal.end': apistar.validators.String(
+            title='End of Topic Date Range',
+            description='End of the date range that the %s is '
+                        'about ' % sr,
             pattern=r'^\d+(?:-\d{2}){,2}$',
             allow_null=True),
     'sourceResource.temporal.before': apistar.validators.String(

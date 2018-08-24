@@ -52,6 +52,8 @@ fields_to_query = {
     'sourceResource.collection.title': '1',
     'sourceResource.contributor': '1',
     'sourceResource.creator': '1',
+    'sourceResource.date.begin': None,
+    'sourceResource.date.end': None,
     'sourceResource.description': '0.75',
     'sourceResource.extent': '1',
     'sourceResource.format': '1',
@@ -71,6 +73,8 @@ fields_to_query = {
     'sourceResource.specType': '1',
     'sourceResource.subject': None,
     'sourceResource.subject.name': '1',
+    'sourceResource.temporal.begin': None,
+    'sourceResource.temporal.end': None,
     'sourceResource.title': '2',
     'sourceResource.type': '1'
 }
