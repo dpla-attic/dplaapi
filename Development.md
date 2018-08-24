@@ -32,7 +32,7 @@ your shell.)
 
 ### Current Dependencies
 
-* Python 3.6.6  (See `Dockerfile`, `.python-version`, and `.travis.yml`)
+* Python 3.7.0  (See `Dockerfile`, `.python-version`, and `.travis.yml`)
 * Debian "Stretch" (Debian 9) for the Docker image (See `Dockerfile`). We're
 using the latest official Python Docker image, which uses this distribution.
 * Python packages indicated in `setup.py` and `requirements.txt`
