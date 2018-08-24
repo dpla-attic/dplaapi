@@ -270,6 +270,7 @@ async def test_specific_item_rejects_bad_querystring_param():
         await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
                                         QueryParams({'page_size': 1}))
 
+
 @pytest.mark.asyncio
 async def test_specific_item_BadRequest_for_ValidationError(monkeypatch):
 
