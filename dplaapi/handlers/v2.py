@@ -23,8 +23,18 @@ def items(params):
     """
     sq = SearchQuery(params)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
-    resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
-    resp.raise_for_status()
+    try:
+        resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if resp.status_code == 400:
+            # Assume that a Bad Request is the user's fault and we're getting
+            # this because the query doesn't parse due to a bad search term
+            # parameter.  For example "this AND AND that".
+            raise exceptions.BadRequest('Invalid query')
+        else:
+            log.exception('Error querying Elasticsearch')
+            raise Exception('Backend search operation failed')
     result = resp.json()
     return result
 
@@ -120,15 +130,6 @@ async def multiple_items(
         raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)
-    except requests.exceptions.HTTPError as e:
-        if resp.status_code == 400:
-            # Assume that a Bad Request is the user's fault and we're getting
-            # this because the query doesn't parse due to a bad search term
-            # parameter.  For example "this AND AND that".
-            raise exceptions.BadRequest('Invalid query')
-        else:
-            log.exception('Error querying Elasticsearch')
-            raise ServerError('Backend search operation failed')
     except Exception as e:
         log.exception('Unexpected error')
         raise ServerError('Unexpected error')
@@ -156,9 +157,6 @@ async def specific_item(id_or_ids: str,
         raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)
-    except requests.exceptions.HTTPError as e:
-        log.exception('Error querying Elasticsearch')
-        raise ServerError('Backend search operation failed')
     except Exception as e:
         log.exception('Unexpected error')
         raise ServerError('Unexpected error')

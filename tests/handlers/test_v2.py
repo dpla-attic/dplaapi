@@ -5,7 +5,7 @@ import pytest
 import requests
 import json
 from apistar import test
-from apistar.exceptions import BadRequest
+from apistar.exceptions import BadRequest, ValidationError
 from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
 from dplaapi import search_query
@@ -122,17 +122,40 @@ def mock_application_exception(*args, **kwargs):
     return {'impossible': 1/0}
 
 
-@pytest.mark.asyncio
-async def test_items_makes_es_request(monkeypatch):
-    """items() makes an HTTP request to Elasticsearch"""
+# items() tests ...
+
+
+def test_items_makes_es_request(monkeypatch):
+    """multiple_items() makes an HTTP request to Elasticsearch"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    params = QueryParams({'q': 'abcd'})
-    await v2_handlers.multiple_items(params)  # No error
+    params = {'q': 'abcd', 'from': 0, 'page': 1, 'page_size': 1}
+    v2_handlers.items(params)  # No error
+
+
+def test_items_Exception_for_elasticsearch_errs(monkeypatch):
+    """An Elasticsearch error response other than a 400 results in a 500"""
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
+    # Simulate some unsuccessful status code from Elasticsearch, other than a
+    # 400 Bad Request.  Say a 500 Server Error, or a 404.
+    params = {'q': 'goodquery', 'from': 0, 'page': 1, 'page_size': 1}
+    with pytest.raises(Exception):
+        v2_handlers.items(params)
+
+
+# multiple_items() tests ...
+
+def test_multiple_items_calls_items_correctly(monkeypatch):
+    """/v2/items calls items() with dictionary"""
+    def mock_items(arg):
+        assert isinstance(arg, dict)
+        return minimal_good_response
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    client.get('/v2/items')
 
 
 @pytest.mark.asyncio
-async def test_items_formats_response_metadata(monkeypatch):
-    """items() assembles the correct response metadata"""
+async def test_multiple_items_formats_response_metadata(monkeypatch):
+    """multiple_items() assembles the correct response metadata"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     params = QueryParams({'q': 'abcd'})
     response_obj = await v2_handlers.multiple_items(params)
@@ -147,7 +170,7 @@ async def test_items_formats_response_metadata(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_items_raises_BadRequest_for_bad_param_value():
+async def test_multiple_items_BadRequest_for_bad_param_value():
     """Input is validated and bad values for fields with constraints result in
     400 Bad Request responses"""
     params = QueryParams({'rights': "Not the URL it's supposed to be"})
@@ -156,7 +179,7 @@ async def test_items_raises_BadRequest_for_bad_param_value():
 
 
 @pytest.mark.asyncio
-async def test_items_raises_BadRequest_for_unparseable_term(monkeypatch):
+async def test_multiple_items_BadRequest_for_unparseable_term(monkeypatch):
     """User input that is unparseable by Elasticsearch results in a 400"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_400)
     # Elasticsearch can not parse the following query term and responds with
@@ -168,19 +191,7 @@ async def test_items_raises_BadRequest_for_unparseable_term(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_items_raises_ServerError_for_elasticsearch_errs(monkeypatch):
-    """An Elasticsearch error response other than a 400 results in a 500"""
-    monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
-    # Simulate some unsuccessful status code from Elasticsearch, other than a
-    # 400 Bad Request.  Say a 500 Server Error, or a 404.
-    params = QueryParams({'q': 'goodquery'})
-    with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.multiple_items(params)
-    assert 'Backend search operation failed' in str(excinfo)
-
-
-@pytest.mark.asyncio
-async def test_items_raises_ServerError_for_misc_app_exception(monkeypatch):
+async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch):
     """A bug in our application that raises an Exception results in
     a ServerError (HTTP 500) with a generic message"""
     monkeypatch.setattr(
@@ -192,7 +203,7 @@ async def test_items_raises_ServerError_for_misc_app_exception(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_items_handles_query_parameters(monkeypatch):
+async def test_multiple_items_handles_query_parameters(monkeypatch):
     """items() makes a good `goodparams' dict from querystring params"""
     def mock_searchquery(params_to_check):
         assert params_to_check == {'q': 'test'}
@@ -203,22 +214,17 @@ async def test_items_handles_query_parameters(monkeypatch):
     await v2_handlers.multiple_items(params)
 
 
-def test_multiple_items_path(monkeypatch):
-    """/v2/items calls items() with dictionary"""
-    def mock_items_multiple(arg):
-        assert isinstance(arg, dict)
-        return minimal_good_response
-    monkeypatch.setattr(v2_handlers, 'items', mock_items_multiple)
-    client.get('/v2/items')
+# end multiple_items tests.
+
+# specific_items tests ...
 
 
-def test_specific_item_path(monkeypatch):
+def test_specific_item_path(mocker):
     """/v2/items/{id} calls items() with correct 'ids' parameter"""
-    def mock_items(arg):
-        assert arg == {'ids': ['13283cd2bd45ef385aae962b144c7e6a']}
-        return minimal_good_response
-    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    mocker.patch('dplaapi.handlers.v2.items')
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
+    v2_handlers.items.assert_called_once_with(
+        {'ids': ['13283cd2bd45ef385aae962b144c7e6a']})
 
 
 @pytest.mark.asyncio
@@ -263,6 +269,18 @@ async def test_specific_item_rejects_bad_querystring_param():
     with pytest.raises(BadRequest):
         await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
                                         QueryParams({'page_size': 1}))
+
+@pytest.mark.asyncio
+async def test_specific_item_BadRequest_for_ValidationError(monkeypatch):
+
+    def mock_items(arg):
+        raise ValidationError('No!')
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    with pytest.raises(BadRequest):
+        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a', {})
+
+# end specific_items tests.
 
 
 def test_geo_facets():

@@ -416,16 +416,6 @@ items_params = {
 }
 
 
-specific_items_params = {
-    'callback': items_params['callback'],
-    'ids': apistar.validators.String(
-            title='ID or IDs',
-            description='DPLA Record ID or IDs',
-            pattern=r'^[a-f0-9]{32}(?:,[a-f0-9]{32}){,49}$',
-            allow_null=True)
-}
-
-
 class ItemsQueryType(dict):
     def __init__(self, *args):
         super(ItemsQueryType, self).__init__(*args)
