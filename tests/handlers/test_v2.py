@@ -8,7 +8,7 @@ from apistar import test
 from apistar.exceptions import BadRequest, ValidationError
 from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
-from dplaapi import search_query
+from dplaapi import search_query, types
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.exceptions import ServerError
 
@@ -95,6 +95,14 @@ class Mock400Response():
         raise requests.exceptions.HTTPError('Can not parse whatever that was')
 
 
+class Mock404Response():
+    """Mock a `requests.Response` for an HTTP 404"""
+    status_code = 404
+
+    def raise_for_status(self):
+        raise requests.exceptions.HTTPError('Index not found')
+
+
 class Mock500Response():
     """Mock a `requests.Response` for an HTTP 500"""
     status_code = 500
@@ -111,6 +119,11 @@ def mock_es_post_response_200(url, json):
 def mock_es_post_response_400(url, json):
     """Mock `requests.post()` with a Bad Request response"""
     return Mock400Response()
+
+
+def mock_es_post_response_404(url, json):
+    """Mock `requests.post()` with a Not Found response"""
+    return Mock404Response()
 
 
 def mock_es_post_response_err(url, json):
@@ -424,3 +437,66 @@ def test_response_object_returns_correct_Response_for_JSONP_request():
     headers = {k: v for k, v in rv.headers}
     assert headers['content-type'] == 'application/javascript'
     assert rv.content == b'f({})'
+
+
+# Exception-handling and HTTP status double-checks
+
+
+def test_elasticsearch_500_means_client_500(monkeypatch):
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
+    response = client.get('/v2/items')
+    assert response.status_code == 500
+    assert response.json() == 'Unexpected error'
+
+
+def test_elasticsearch_503_means_client_503(monkeypatch):
+    # TODO: need to revise dplaapi.handlers.v2.items() and add a
+    # ServiceUnavailable exception class
+    pass
+
+
+def test_elasticsearch_400_means_client_400(monkeypatch):
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_400)
+    response = client.get('/v2/items?q=some+bad+search')
+    assert response.status_code == 400
+    assert response.json() == 'Invalid query'
+
+
+def test_elasticsearch_404_means_client_500(monkeypatch):
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_404)
+    response = client.get('/v2/items')
+    assert response.status_code == 500
+    assert response.json() == 'Unexpected error'
+
+
+def test_ItemsQueryType_ValidationError_means_client_400(monkeypatch):
+
+    def badinit(*args, **kwargs):
+        raise ValidationError('no good')
+
+    monkeypatch.setattr(types.ItemsQueryType, '__init__', badinit)
+    response = client.get('/v2/items?hasView.format=some+bad+string')
+    assert response.status_code == 400
+
+
+def test_ItemsQueryType_Exception_means_client_500(monkeypatch):
+
+    def badinit(*args, **kwargs):
+        raise AttributeError()
+
+    monkeypatch.setattr(types.ItemsQueryType, '__init__', badinit)
+    response = client.get('/v2/items?provider.name=a+provider')
+    assert response.status_code == 500
+    assert response.json() == 'Unexpected error'
+
+
+def test_search_query_Exception_means_client_500(monkeypatch):
+    # have q_fields_clause_items raise KeyError
+
+    def problem_func(*args, **kwargs):
+        raise KeyError()
+
+    monkeypatch.setattr(search_query, 'q_fields_clause', problem_func)
+    response = client.get('/v2/items')
+    assert response.status_code == 500
+    assert response.json() == 'Unexpected error'
