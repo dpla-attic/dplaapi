@@ -107,7 +107,8 @@ def response_object(data, params):
         content = "%s(%s)" % (params['callback'], json.dumps(data))
         return http.Response(content=content, headers=headers)
     else:
-        return http.JSONResponse(data)
+        headers = {'Content-Type': 'application/json; charset=utf-8'}
+        return http.JSONResponse(data, headers=headers)
 
 
 async def multiple_items(
