@@ -70,6 +70,11 @@ items_params = {
             max_length=200,
             pattern=r'^[a-zA-Z\.,]+',
             allow_null=True),
+    'facet_size': apistar.validators.String(
+            title='Facet Size',
+            description='Number of facets to return',
+            pattern=r'^\d+$',
+            allow_null=True),
     'exact_field_match': apistar.validators.String(
             title='Exact Field Match',
             description='Whether to match specific fields exactly as given '

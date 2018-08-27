@@ -177,7 +177,7 @@ def clean_facet_name(name):
     return name.partition(':')[0]
 
 
-def facets_for(field_name):
+def facets_for(field_name, size):
     """Return a dict for the aggregation (facet) for the given field"""
 
     if field_name.startswith('sourceResource.spatial.coordinates'):
@@ -192,7 +192,8 @@ def facets_for(field_name):
                 'field': field,
                 'origin': origin,
                 'unit': 'mi',
-                'ranges': ranges
+                'ranges': ranges,
+                'size': size
             }
         }
 
@@ -204,19 +205,22 @@ def facets_for(field_name):
         if facet_type == 'date_histogram':
             interval = date_facet_interval(field_name)
             if interval in ['month', 'year']:
-                return date_histogram_agg(field_name, actual_field, interval)
+                return date_histogram_agg(field_name,
+                                          actual_field,
+                                          interval,
+                                          size)
             else:
                 # We lie.  We really have to use a 'range' aggregation for
                 # month, decade, and century, but 'date_histogram' was
                 # always the term used in the response, since before we
                 # upgraded to Elasticsearch 6 and the API was ported over to
                 # this application.
-                return date_range_agg(actual_field, interval)
+                return date_range_agg(actual_field, interval, size)
         else:
-            return {'terms': {'field': actual_field}}
+            return {'terms': {'field': actual_field, 'size': size}}
 
 
-def date_histogram_agg(facet_name, actual_field, interval):
+def date_histogram_agg(facet_name, actual_field, interval, size):
     # The minimum date in the filter 'range' below keeps us from getting
     # HTTP 503 errors from Elasticsearch due to using too many aggregation
     # buckets (more than 5000).
@@ -244,14 +248,15 @@ def date_histogram_agg(facet_name, actual_field, interval):
                     'interval': interval,
                     'format': key_format[interval],
                     'min_doc_count': 1,
-                    'order': {'_key': 'desc'}
+                    'order': {'_key': 'desc'},
+                    'size': size
                 }
             }
         }
     }
 
 
-def date_range_agg(actual_field, interval):
+def date_range_agg(actual_field, interval, size):
     span = {'decade': 10, 'century': 100}
     y_first = int(datetime.now().year / span[interval]) * span[interval]
     y_last = y_first + span[interval] - 1
@@ -267,7 +272,8 @@ def date_range_agg(actual_field, interval):
         'date_range': {
             'field': actual_field,
             'ranges': ranges,
-            'format': 'yyyy'
+            'format': 'yyyy',
+            'size': size
             # 'order' is not a valid property for a 'range' aggregation.
         }
     }
@@ -286,10 +292,19 @@ def date_facet_interval(facet_name):
         return 'year'
 
 
-def facets_clause(facets_string):
+def facets_clause(facets_string, size):
     """Return a dict for the whole Elasticsearch 'aggs' property"""
     names = facets_string.split(',')
-    return {clean_facet_name(name): facets_for(name) for name in names}
+    return {clean_facet_name(name): facets_for(name, size) for name in names}
+
+
+def facet_size(constraints):
+    size = int(constraints.get('facet_size', 50))
+    # The old API app truncated the size like this, and we do so here for
+    # consistency.
+    if size > 2000:
+        size = 2000
+    return size
 
 
 class SearchQuery():
@@ -339,7 +354,8 @@ class SearchQuery():
             self.add_sort_clause(constraints)
 
         if 'facets' in constraints:
-            self.query['aggs'] = facets_clause(constraints['facets'])
+            size = facet_size(constraints)
+            self.query['aggs'] = facets_clause(constraints['facets'], size)
 
     def add_query_string_clause(self, field, term, constraints):
         clause = {

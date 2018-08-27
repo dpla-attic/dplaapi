@@ -253,29 +253,30 @@ def test_SearchQuery_adds_facets_to_query():
 def test_facets_clause_return_correct_dict(monkeypatch):
     """The dict comprehension for the facets clause works and it makes the
     right function calls"""
-    def mock_facets_for(name):
+    def mock_facets_for(name, size):
+        del(size)
         assert name in ['x', 'y']
         return {}
     monkeypatch.setattr(search_query, 'facets_for', mock_facets_for)
-    assert search_query.facets_clause('x,y') == {'x': {}, 'y': {}}
+    assert search_query.facets_clause('x,y', 50) == {'x': {}, 'y': {}}
 
 
 def test_facets_for_handles_keyword_field():
     """It makes a simple 'terms' clause"""
-    assert search_query.facets_for('hasView.@id') == {
-        'terms': {'field': 'hasView.@id'}
+    assert search_query.facets_for('hasView.@id', 50) == {
+        'terms': {'field': 'hasView.@id', 'size': 50}
     }
 
 
 def test_facets_for_handles_text_field():
     """It uses the .not_analyzed field"""
-    assert search_query.facets_for('intermediateProvider') == {
-        'terms': {'field': 'intermediateProvider.not_analyzed'}
+    assert search_query.facets_for('intermediateProvider', 50) == {
+        'terms': {'field': 'intermediateProvider.not_analyzed', 'size': 50}
     }
 
 
 def test_facets_for_handles_date_field():
-    assert search_query.facets_for('sourceResource.date.begin') == {
+    assert search_query.facets_for('sourceResource.date.begin', 50) == {
         'filter': {
             'range': {
                 'sourceResource.date.begin': {
@@ -291,7 +292,8 @@ def test_facets_for_handles_date_field():
                     'interval': 'year',
                     'format': 'yyyy',
                     'min_doc_count': 1,
-                    'order': {'_key': 'desc'}
+                    'order': {'_key': 'desc'},
+                    'size': 50
                 }
             }
         }
@@ -304,14 +306,14 @@ def test_facets_for_histogram_for_month_or_year(mocker):
     field = 'sourceResource.date.begin'
     for interval in ['month', 'year']:
         facet = "%s.%s" % (field, interval)
-        search_query.facets_for(facet)
+        search_query.facets_for(facet, 50)
         search_query.date_histogram_agg.assert_called_once_with(
-            facet, field, interval)
+            facet, field, interval, 50)
         search_query.date_histogram_agg.reset_mock()
     # Also for no modifier, which should default to "year" ...
-    search_query.facets_for(field)
+    search_query.facets_for(field, 50)
     search_query.date_histogram_agg.assert_called_once_with(
-        field, field, 'year')
+        field, field, 'year', 50)
 
 
 def test_facets_for_histogram_for_decade_or_century(mocker):
@@ -320,8 +322,10 @@ def test_facets_for_histogram_for_decade_or_century(mocker):
     for interval in ['decade', 'century']:
         field = 'sourceResource.date.begin'
         facet = "%s.%s" % (field, interval)
-        search_query.facets_for(facet)
-        search_query.date_range_agg.assert_called_once_with(field, interval)
+        search_query.facets_for(facet, 50)
+        search_query.date_range_agg.assert_called_once_with(field,
+                                                            interval,
+                                                            50)
         search_query.date_range_agg.reset_mock()
 
 
@@ -339,20 +343,21 @@ def test_SearchQuery_facets_for_handles_coordinates_field():
         {'from': 1600, 'to': 1699}, {'from': 1700, 'to': 1799},
         {'from': 1800, 'to': 1899}, {'from': 1900, 'to': 1999},
         {'from': 2000, 'to': 2099}, {'from': 2100}]
-    facets_clause = search_query.facets_for(f)
+    facets_clause = search_query.facets_for(f, 50)
     assert facets_clause == {
         'geo_distance': {
             'field': 'sourceResource.spatial.coordinates',
             'origin': '40.941258,-73.864468',
             'unit': 'mi',
-            'ranges': ranges
+            'ranges': ranges,
+            'size': 50
         }
     }
 
 
 def test_facets_for_raises_exception_for_bad_field_name():
     with pytest.raises(ValidationError):
-        search_query.facets_for('x')
+        search_query.facets_for('x', 50)
 
 
 def test_date_facet_interval_w_no_modifier():
@@ -382,7 +387,7 @@ def test_date_range_agg_for_decade():
     # This test will have to be revised in 2020.
     field = 'sourceResource.date.begin'
     interval = 'decade'
-    result = search_query.date_range_agg(field, interval)
+    result = search_query.date_range_agg(field, interval, 50)
     ranges = [
         {'from': '2010', 'to': '2019'}, {'from': '2000', 'to': '2009'},
         {'from': '1990', 'to': '1999'}, {'from': '1980', 'to': '1989'},
@@ -413,7 +418,8 @@ def test_date_range_agg_for_decade():
         'date_range': {
             'field': 'sourceResource.date.begin',
             'ranges': ranges,
-            'format': 'yyyy'
+            'format': 'yyyy',
+            'size': 50
         }
     }
 
@@ -422,7 +428,7 @@ def test_date_range_agg_for_century():
     """With 'century' interval, it produces a correct facet clause"""
     field = 'sourceResource.date.begin'
     interval = 'century'
-    result = search_query.date_range_agg(field, interval)
+    result = search_query.date_range_agg(field, interval, 50)
     ranges = [
         {'from': '2000', 'to': '2099'}, {'from': '1900', 'to': '1999'},
         {'from': '1800', 'to': '1899'}, {'from': '1700', 'to': '1799'},
@@ -453,7 +459,8 @@ def test_date_range_agg_for_century():
         'date_range': {
             'field': 'sourceResource.date.begin',
             'ranges': ranges,
-            'format': 'yyyy'
+            'format': 'yyyy',
+            'size': 50
         }
     }
 
@@ -463,7 +470,7 @@ def test_date_histogram_agg_for_month():
     facet = 'sourceResource.date.begin.month'
     actual_field = 'sourceResource.date.begin'
     interval = 'month'
-    result = search_query.date_histogram_agg(facet, actual_field, interval)
+    result = search_query.date_histogram_agg(facet, actual_field, interval, 50)
     assert result == {
         'filter': {
             'range': {
@@ -480,8 +487,26 @@ def test_date_histogram_agg_for_month():
                     'interval': 'month',
                     'format': 'yyyy-MM',
                     'min_doc_count': 1,
-                    'order': {'_key': 'desc'}
+                    'order': {'_key': 'desc'},
+                    'size': 50
                 }
             }
         }
     }
+
+
+def test_facet_size_default():
+    """facet_size() has default return value 50"""
+    assert search_query.facet_size({}) == 50
+
+
+def test_facet_size_returns_ok_facet_size_value():
+    assert search_query.facet_size({'facet_size': '10'}) == 10
+
+
+def test_face_size_truncates_facet_size_if_too_large():
+    """It truncates values over 2000 to 2000.
+
+    This is not ideal, but it is how the old API has operated.
+    """
+    assert search_query.facet_size({'facet_size': '2001'}) == 2000
