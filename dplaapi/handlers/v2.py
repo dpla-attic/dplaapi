@@ -59,7 +59,8 @@ def formatted_facets(es6_aggregations):
 
 
 def geo_facets(this_agg):
-    ranges = [{'from': b['from'], 'to': b['to'], 'count': b['doc_count']}
+    ranges = [{'from': b.get('from'), 'to': b.get('to'),
+               'count': b['doc_count']}
               for b in this_agg['buckets']]
     return {'_type': 'geo_distance', 'ranges': ranges}
 
