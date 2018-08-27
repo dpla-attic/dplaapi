@@ -292,8 +292,7 @@ def test_facets_for_handles_date_field():
                     'interval': 'year',
                     'format': 'yyyy',
                     'min_doc_count': 1,
-                    'order': {'_key': 'desc'},
-                    'size': 50
+                    'order': {'_key': 'desc'}
                 }
             }
         }
@@ -349,8 +348,7 @@ def test_SearchQuery_facets_for_handles_coordinates_field():
             'field': 'sourceResource.spatial.coordinates',
             'origin': '40.941258,-73.864468',
             'unit': 'mi',
-            'ranges': ranges,
-            'size': 50
+            'ranges': ranges
         }
     }
 
@@ -418,8 +416,7 @@ def test_date_range_agg_for_decade():
         'date_range': {
             'field': 'sourceResource.date.begin',
             'ranges': ranges,
-            'format': 'yyyy',
-            'size': 50
+            'format': 'yyyy'
         }
     }
 
@@ -459,8 +456,7 @@ def test_date_range_agg_for_century():
         'date_range': {
             'field': 'sourceResource.date.begin',
             'ranges': ranges,
-            'format': 'yyyy',
-            'size': 50
+            'format': 'yyyy'
         }
     }
 
@@ -487,8 +483,7 @@ def test_date_histogram_agg_for_month():
                     'interval': 'month',
                     'format': 'yyyy-MM',
                     'min_doc_count': 1,
-                    'order': {'_key': 'desc'},
-                    'size': 50
+                    'order': {'_key': 'desc'}
                 }
             }
         }

@@ -178,7 +178,12 @@ def clean_facet_name(name):
 
 
 def facets_for(field_name, size):
-    """Return a dict for the aggregation (facet) for the given field"""
+    """Return a dict for the aggregation (facet) for the given field
+
+    Arguments:
+    - size: Number of buckets per aggregation, where applicable.  Ignored for
+            geo_distance and date facets.
+    """
 
     if field_name.startswith('sourceResource.spatial.coordinates'):
         parts = field_name.partition(':')
@@ -192,8 +197,7 @@ def facets_for(field_name, size):
                 'field': field,
                 'origin': origin,
                 'unit': 'mi',
-                'ranges': ranges,
-                'size': size
+                'ranges': ranges
             }
         }
 
@@ -248,8 +252,7 @@ def date_histogram_agg(facet_name, actual_field, interval, size):
                     'interval': interval,
                     'format': key_format[interval],
                     'min_doc_count': 1,
-                    'order': {'_key': 'desc'},
-                    'size': size
+                    'order': {'_key': 'desc'}
                 }
             }
         }
@@ -272,8 +275,7 @@ def date_range_agg(actual_field, interval, size):
         'date_range': {
             'field': actual_field,
             'ranges': ranges,
-            'format': 'yyyy',
-            'size': size
+            'format': 'yyyy'
             # 'order' is not a valid property for a 'range' aggregation.
         }
     }
