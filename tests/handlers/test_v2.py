@@ -501,3 +501,26 @@ def test_search_query_Exception_means_client_500(monkeypatch):
     response = client.get('/v2/items')
     assert response.status_code == 500
     assert response.json() == 'Unexpected error'
+
+
+def test_compact():
+    """compact() takes an ES 6 "doc" and compacts the keys so that they look
+    like they used to coming out of ES 0.90"""
+    before = {
+        'id': '00000134adfdfa05e988480f9fa56b1a',
+        'sourceResource': {
+            'date': {
+                'begin': '1990',
+                'end': '1991'
+            }
+        }
+    }
+    after = {
+        'id': '00000134adfdfa05e988480f9fa56b1a',
+        'sourceResource.date': {
+            'begin': '1990',
+            'end': '1991'
+        }
+    }
+    result = v2_handlers.compact(before)
+    assert result == after
