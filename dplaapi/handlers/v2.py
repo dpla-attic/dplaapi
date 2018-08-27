@@ -101,12 +101,13 @@ def term_facets(this_agg):
     return {'_type': 'terms', 'terms': terms}
 
 
-def compact(doc):
+def compact(doc, params):
     """Display Elasticsearch 6 nested objects as they appeared in ES 0.90"""
-    if 'sourceResource' in doc:
-        for k in doc['sourceResource']:
-            doc["sourceResource.%s" % k] = doc['sourceResource'][k]
-        del(doc['sourceResource'])
+    if 'fields' in params:
+        if 'sourceResource' in doc:
+            for k in doc['sourceResource']:
+                doc["sourceResource.%s" % k] = doc['sourceResource'][k]
+            del(doc['sourceResource'])
     return doc
 
 
@@ -131,7 +132,7 @@ async def multiple_items(
                       * int(goodparams['page_size'])               # noqa: E131
                       + 1,                                         # noqa: E131
             'limit': int(goodparams['page_size']),
-            'docs': [compact(hit['_source'])
+            'docs': [compact(hit['_source'], goodparams)
                      for hit in result['hits']['hits']],
             'facets': formatted_facets(result.get('aggregations', {}))
         }

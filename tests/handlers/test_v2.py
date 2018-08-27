@@ -503,7 +503,7 @@ def test_search_query_Exception_means_client_500(monkeypatch):
     assert response.json() == 'Unexpected error'
 
 
-def test_compact():
+def test_compact_with_field_param():
     """compact() takes an ES 6 "doc" and compacts the keys so that they look
     like they used to coming out of ES 0.90"""
     before = {
@@ -522,5 +522,22 @@ def test_compact():
             'end': '1991'
         }
     }
-    result = v2_handlers.compact(before)
+    result = v2_handlers.compact(before, {'fields': 'sourceResource.date'})
     assert result == after
+
+
+def test_compact_without_field_param():
+    """compact() does not flatten fields if we're returning the whole
+    sourceResource"""
+    before = {
+        'id': '00000134adfdfa05e988480f9fa56b1a',
+        'sourceResource': {
+            'title': 'x',
+            'date': {
+                'begin': '1990',
+                'end': '1991'
+            }
+        }
+    }
+    result = v2_handlers.compact(before, {'fields': 'sourceResource.date'})
+    assert result == before
