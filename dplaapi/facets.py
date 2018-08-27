@@ -40,6 +40,8 @@ facets = {
     'sourceResource.language.iso639_3': ('sourceResource.language.iso639_3',
                                          'date_histogram'),
     'sourceResource.language.name': ('sourceResource.language.name', 'terms'),
+    'sourceResource.publisher': ('sourceResource.publisher.not_analyzed',
+                                 'terms'),
     'sourceResource.spatial.city': ('sourceResource.spatial.city.not_analyzed',
                                     'terms'),
     'sourceResource.spatial.coordinates': ('sourceResource.spatial'

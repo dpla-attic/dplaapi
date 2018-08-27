@@ -40,6 +40,7 @@ items_params = {
                 'sourceResource.date.begin', 'sourceResource.date.end',
                 'sourceResource.extent', 'sourceResource.language.name',
                 'sourceResource.language.iso639_3', 'sourceResource.format',
+                'sourceResource.publisher',
                 'sourceResource.spatial.name',
                 'sourceResource.spatial.country',
                 'sourceResource.spatial.region',

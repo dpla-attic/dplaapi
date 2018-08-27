@@ -102,6 +102,7 @@ field_or_subfield = {
     'sourceResource.format': 'sourceResource.format',
     'sourceResource.language.iso639_3': 'sourceResource.language.iso639_3',
     'sourceResource.language.name': 'sourceResource.language.name',
+    'sourceResource.publisher': 'sourceResource.publisher.not_analyzed',
     'sourceResource.spatial': 'sourceResource.spatial.name.not_analyzed',
     'sourceResource.spatial.city': 'sourceResource.spatial.city.not_analyzed',
     'sourceResource.spatial.coordinates': 'sourceResource.spatial.coordinates',
