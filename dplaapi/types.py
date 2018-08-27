@@ -2,7 +2,6 @@
 import apistar
 
 
-max_page_size = 500
 total_result_set_size = 50000 + 500
 sr = 'SourceResource (Cultural Heritage Object)'
 url_match_pat = r'^https?://[-a-zA-Z0-9:%_\+.~#?&/=]+$'
@@ -461,6 +460,11 @@ class ItemsQueryType(dict):
                 and 'sort_by_pin' not in self:
             raise apistar.exceptions.ValidationError(
                 'The sort_by_pin parameter is required.')
+
+        if self['page_size'] > 500:
+            # This is what the legacy API app has always done. Not great, but
+            # we have to be consistent.
+            self['page_size'] = 500
 
         if self['page'] * self['page_size'] >= total_result_set_size:
             raise apistar.exceptions.ValidationError(

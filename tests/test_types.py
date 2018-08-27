@@ -56,6 +56,15 @@ def test_ItemsQueryType_sets_default_page_size():
     assert x['page_size'] == 10
 
 
+def test_ItemsQueryType_truncates_page_size():
+    """ItemsQueryType truncates a page_size greater than 500 to 500
+
+    This is not ideal, but it's what the API has always done.
+    """
+    x = types.ItemsQueryType({'page_size': '501'})
+    assert x['page_size'] == 500
+
+
 def test_ItemsQueryType_validates_offset():
     """ItemsQueryType validates that page and page size are within limits"""
     types.ItemsQueryType({'page_size': '500', 'page': '100'})  # OK
