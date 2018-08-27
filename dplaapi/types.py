@@ -61,7 +61,7 @@ items_params = {
             title='Sort-By Pin',
             description='When sort_order is sourceResource.spatial'
                         '.coordinates, sort by distance from this point.',
-            pattern=r'^[\+\-]?\d+(?:\.\d+)?,[\+\-]?\d+(?:\.\d+)?$',
+            pattern=r'^[\+\-]?\d+(?:\.\d+)?\s*,\s*[\+\-]?\d+(?:\.\d+)?$',
             allow_null=True),
     'facets': apistar.validators.String(
             title='Facets',
