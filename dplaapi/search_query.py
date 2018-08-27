@@ -64,6 +64,7 @@ fields_to_query = {
     'sourceResource.publisher': '1',
     'sourceResource.relation': '1',
     'sourceResource.rights': None,
+    'sourceResource.spatial': None,
     'sourceResource.spatial.coordinates': None,
     'sourceResource.spatial.country': '0.75',
     'sourceResource.spatial.county': '1',
@@ -80,6 +81,8 @@ fields_to_query = {
 }
 
 
+# Dictionary of {field: actual field to use} for a sort or an
+# "exact_field_match" query
 field_or_subfield = {
     'dataProvider': 'dataProvider.not_analyzed',
     '@id': '@id',
@@ -99,6 +102,7 @@ field_or_subfield = {
     'sourceResource.format': 'sourceResource.format',
     'sourceResource.language.iso639_3': 'sourceResource.language.iso639_3',
     'sourceResource.language.name': 'sourceResource.language.name',
+    'sourceResource.spatial': 'sourceResource.spatial.name.not_analyzed',
     'sourceResource.spatial.city': 'sourceResource.spatial.city.not_analyzed',
     'sourceResource.spatial.coordinates': 'sourceResource.spatial.coordinates',
     'sourceResource.spatial.country': 'sourceResource.spatial.country'
@@ -119,6 +123,12 @@ field_or_subfield = {
     'sourceResource.type': 'sourceResource.type'
 }
 
+# We let the user query on some fields that are objects. We really mean
+# "field.*" ... or else Elasticsearch won't query its subfields.
+object_wildcards = {
+    'sourceResource.spatial': 'sourceResource.spatial.*'
+}
+
 
 temporal_search_field_pat = re.compile(r'(?P<field>.*)?\.(?P<modifier>.*)$')
 
@@ -136,10 +146,11 @@ def q_fields_clause(d: dict):
 
 
 def single_field_fields_clause(field, boost, constraints):
+    """The 'fields' part for one 'query_string' clause"""
     if constraints.get('exact_field_match') == 'true':
         field_to_use = field_or_subfield.get(field, field)
     else:
-        field_to_use = field
+        field_to_use = object_wildcards.get(field, field)
     if boost:
         return ['^'.join([field_to_use, boost])]
     else:

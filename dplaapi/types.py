@@ -245,6 +245,12 @@ items_params = {
             min_length=2,
             max_length=200,
             allow_null=True),
+    'sourceResource.spatial': apistar.validators.String(
+            title='Place',
+            description="Place related to %s" % sr,
+            min_length=2,
+            max_length=200,
+            allow_null=True),
     'sourceResource.spatial.name': apistar.validators.String(
             title='Place Name',
             description="Name of place related to %s" % sr,

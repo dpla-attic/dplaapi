@@ -126,6 +126,14 @@ def test_single_field_fields_clause_subfield_exact_field_match():
     assert result == ['dataProvider.not_analyzed']
 
 
+def test_single_field_fields_clause_object_wildcards():
+    """single_field_fields_clause() picks up the ".*" for a field that's an
+    object"""
+    result = search_query.single_field_fields_clause(
+        'sourceResource.spatial', None, {})
+    assert result == ['sourceResource.spatial.*']
+
+
 def test_fields_and_constraints_separates_parameters():
     """Given a dict of record field names and query constraints, it produces
     two dicts, one with the field names, and the other with the constraints.
