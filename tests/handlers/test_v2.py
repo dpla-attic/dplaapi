@@ -237,7 +237,8 @@ def test_specific_item_path(mocker):
     mocker.patch('dplaapi.handlers.v2.items')
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
     v2_handlers.items.assert_called_once_with(
-        {'ids': ['13283cd2bd45ef385aae962b144c7e6a']})
+        {'page': 1, 'page_size': 1, 'sort_order': 'asc',
+         'ids': ['13283cd2bd45ef385aae962b144c7e6a']})
 
 
 @pytest.mark.asyncio

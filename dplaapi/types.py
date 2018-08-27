@@ -84,6 +84,11 @@ items_params = {
             min_length=1,
             max_length=100,
             allow_null=True),
+    'api_key': apistar.validators.String(
+            title='API Key',
+            description='API Key',
+            pattern=r'^[a-f0-9]{32}$',
+            allow_null=True),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',

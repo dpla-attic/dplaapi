@@ -139,14 +139,15 @@ async def specific_item(id_or_ids: str,
                         params: http.QueryParams) -> dict:
     try:
         for k in list(params):        # list of tuples
-            if k[0] != 'callback':
+            if k[0] != 'callback' and k[0] != 'api_key':
                 raise exceptions.BadRequest('Unrecognized parameter %s' % k[0])
+        goodparams = ItemsQueryType({k: v for [k, v] in params})
         ids = id_or_ids.split(',')
         for the_id in ids:
             if not re.match(r'[a-f0-9]{32}$', the_id):
                 raise exceptions.BadRequest("Bad ID: %s" % the_id)
-        goodparams = {k: v for k, v in list(params)}
         goodparams.update({'ids': ids})
+        goodparams['page_size'] = len(ids)
         result = items(goodparams)
         rv = {
             'count': result['hits']['total'],
