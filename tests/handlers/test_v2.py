@@ -374,6 +374,11 @@ def test_formatted_facets():
     }
 
 
+def test_formatted_facets_returns_empty_list_for_no_facets():
+    """It returns an empty list, not a dict, for no facets!"""
+    assert v2_handlers.formatted_facets({}) == []   # sigh.
+
+
 def test_dict_with_date_buckets_works_with_ranges_aggregation():
     """It picks the 'buckets' out of an aggregation response for a range
     aggregation"""

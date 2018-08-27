@@ -40,10 +40,13 @@ def items(params):
 
 
 def formatted_facets(es6_aggregations):
-    """Return list of facets that comply with our legacy format
+    """Return dict of facets that comply with our legacy format, or []
 
     The v2 API is legacy, and the DPLA API specification is for facets to look
     the way they used to, coming out of Elasticsearch 0.90.
+
+    And yes, it's a dict if it's filled-in, and a List if it is empty. That's
+    the way the legacy API has worked.
 
     Arguments
     - es6_facets: dict of 'aggregations' from Elasticsearch
@@ -55,7 +58,13 @@ def formatted_facets(es6_aggregations):
     }
     # facets[k][1] is the 2nd element of the tuple that gives the type of
     # facet. See `facets.facets'.
-    return {k: func[facets[k][1]](v) for k, v in es6_aggregations.items()}
+    rv = {k: func[facets[k][1]](v) for k, v in es6_aggregations.items()}
+    if rv:
+        return rv
+    else:
+        # Yes, an empty list, not a dict.
+        return []
+
 
 
 def geo_facets(this_agg):
