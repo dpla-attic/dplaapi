@@ -65,15 +65,11 @@ def test_ItemsQueryType_truncates_page_size():
     assert x['page_size'] == 500
 
 
-def test_ItemsQueryType_validates_offset():
+def test_ItemsQueryType_validates_page_number():
     """ItemsQueryType validates that page and page size are within limits"""
     types.ItemsQueryType({'page_size': '500', 'page': '100'})  # OK
-    types.ItemsQueryType({'page_size': '1', 'page': '50499'})  # OK
-    types.ItemsQueryType({'page_size': '10', 'page': '5049'})  # OK
     with pytest.raises(ValidationError):
         types.ItemsQueryType({'page_size': '500', 'page': '101'})
-    with pytest.raises(ValidationError):
-        types.ItemsQueryType({'page_size': '10', 'page': '5050'})
 
 
 def test_ItemsQueryType_sets_default_sort_order():

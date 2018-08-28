@@ -2,7 +2,6 @@
 import apistar
 
 
-total_result_set_size = 50000 + 500
 sr = 'SourceResource (Cultural Heritage Object)'
 url_match_pat = r'^https?://[-a-zA-Z0-9:%_\+.~#?&/=]+$'
 
@@ -472,7 +471,12 @@ class ItemsQueryType(dict):
             # we have to be consistent.
             self['page_size'] = 500
 
-        if self['page'] * self['page_size'] >= total_result_set_size:
+        if self['page'] > 100:
+            # Meanwhile, this is a limit that we've had to impose since the
+            # original version of the API came out, due to availability issues.
+            # We're responding with an error to make it clear that this won't
+            # work anymore if it's been expected to.  Unlike the page_size
+            # condition above, where the API Codex always said that the
+            # maximum page size was 500, this warrants alerting the user.
             raise apistar.exceptions.ValidationError(
-                "Total result set size may not exceed %d. Check page_size and "
-                "page parameters." % total_result_set_size)
+                'The maximum page number is 100.')
