@@ -45,4 +45,4 @@ if not ES_BASE:
 # a 404 Not Found error for a request that doesn't match one of our routes.
 # A 500 Server Error will be returned, instead.
 # app = ASyncApp(routes=routes.routes, event_hooks=event_hooks.event_hooks)
-app = ASyncApp(routes=routes.routes)
+app = ASyncApp(routes=routes.routes, docs_url=None)

@@ -38,7 +38,8 @@ setup(name='dplaapi',
           'uvicorn~=0.3',
           'gunicorn~=19.9',
           # aiofiles is required by ASyncApp, even though we have no static
-          # files
+          # files. It's probably there for the /docs endpoint, which we
+          # have disabled.
           'aiofiles~=0.3'
       ],
       extras_require={
