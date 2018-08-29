@@ -121,7 +121,11 @@ def traverse_doc(path, doc):
     if rightpart == '':
         return doc[leftpart]
     else:
-        return traverse_doc(rightpart, doc[leftpart])
+        try:
+            return traverse_doc(rightpart, doc[leftpart])
+        except KeyError:
+            # Some docs in a result may not have the given field
+            return None
 
 
 def compact(doc, params):
@@ -130,7 +134,9 @@ def compact(doc, params):
         rv = {}
         fieldlist = params['fields'].split(',')
         for field in fieldlist:
-            rv[field] = traverse_doc(field, doc)
+            val = traverse_doc(field, doc)
+            if val:
+                rv[field] = val
     else:
         rv = doc
     return rv

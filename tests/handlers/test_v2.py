@@ -508,7 +508,7 @@ def test_search_query_Exception_means_client_500(monkeypatch):
     assert response.json() == 'Unexpected error'
 
 
-def test_compact_with_field_param():
+def test_compact_with_dotted_field_param():
     """compact() takes an ES 6 "doc" and compacts the keys so that they look
     like they used to coming out of ES 0.90"""
     before = {
@@ -532,7 +532,7 @@ def test_compact_with_field_param():
     assert result == after
 
 
-def test_compact_without_field_param():
+def test_compact_without_toplevel_field_param():
     """compact() does not flatten fields if we're returning the whole
     sourceResource"""
     before = {
@@ -548,3 +548,22 @@ def test_compact_without_field_param():
     result = v2_handlers.compact(before.copy(),
                                  {'fields': 'id,sourceResource'})
     assert result == before
+
+
+def test_compact_handles_missing_fields():
+    """compact() handles documents that don't have the requested field"""
+    before = {
+        'id': '00000134adfdfa05e988480f9fa56b1a',
+        'sourceResource': {
+            'title': 'x'
+        }
+    }
+    after = {
+        'id': '00000134adfdfa05e988480f9fa56b1a',
+        'sourceResource.title': 'x'
+    }
+    params = {
+        'fields': 'id,sourceResource.title,sourceResource.date'
+    }
+    result = v2_handlers.compact(before.copy(), params)
+    assert result == after
