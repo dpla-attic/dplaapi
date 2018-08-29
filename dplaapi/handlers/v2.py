@@ -110,14 +110,30 @@ def term_facets(this_agg):
     return {'_type': 'terms', 'terms': terms}
 
 
+def traverse_doc(path, doc):
+    """Given a _source ES doc, parse a dotted-notation path value and return
+    the part of the doc that it represents.
+
+    Called by compact().  See tests/handlers/test_v2.py for examples.
+    """
+    leftpart = path.partition('.')[0]
+    rightpart = path.partition('.')[2]
+    if rightpart == '':
+        return doc[leftpart]
+    else:
+        return traverse_doc(rightpart, doc[leftpart])
+
+
 def compact(doc, params):
     """Display Elasticsearch 6 nested objects as they appeared in ES 0.90"""
     if 'fields' in params:
-        if 'sourceResource' in doc:
-            for k in doc['sourceResource']:
-                doc["sourceResource.%s" % k] = doc['sourceResource'][k]
-            del(doc['sourceResource'])
-    return doc
+        rv = {}
+        fieldlist = params['fields'].split(',')
+        for field in fieldlist:
+            rv[field] = traverse_doc(field, doc)
+    else:
+        rv = doc
+    return rv
 
 
 def response_object(data, params):

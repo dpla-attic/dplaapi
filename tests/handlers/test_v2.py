@@ -527,7 +527,8 @@ def test_compact_with_field_param():
             'end': '1991'
         }
     }
-    result = v2_handlers.compact(before, {'fields': 'sourceResource.date'})
+    result = v2_handlers.compact(before.copy(),
+                                 {'fields': 'id,sourceResource.date'})
     assert result == after
 
 
@@ -544,5 +545,6 @@ def test_compact_without_field_param():
             }
         }
     }
-    result = v2_handlers.compact(before, {'fields': 'sourceResource.date'})
+    result = v2_handlers.compact(before.copy(),
+                                 {'fields': 'id,sourceResource'})
     assert result == before
