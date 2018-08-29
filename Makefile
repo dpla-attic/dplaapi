@@ -12,3 +12,7 @@ clean:
 zip: clean
 	zip dplaapi.zip -x '.git/*' -x '.gitignore' -x '.codacy.yml' \
 		-x '.travis.yml' -x 'tests/*' -r * .[^.]*
+
+test:
+	pytest --cov=dplaapi
+	flake8 dplaapi tests

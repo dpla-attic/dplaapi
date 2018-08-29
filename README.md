@@ -49,7 +49,8 @@ The application recognizes the following environment variables.
 
 Running natively (in development), you can pass the variables like this:
 ```
-$ ES_BASE=http://example:9200/dpla_alias uvicorn dplaapi:app
+$ PYTHONPATH=. ES_BASE=http://example:9200/dpla_alias gunicorn \
+  -k uvicorn.workers.UvicornWorker dplaapi:app
 ```
 ... Or you could `export` the variables in your shell so that you don't have to
 specify them for every run.

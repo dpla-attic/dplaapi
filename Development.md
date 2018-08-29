@@ -110,7 +110,8 @@ $ uvicorn dplaapi:app    # run the app that you've installed with `setup.py`.
 ... or ...
 $ cd /path/to/dplaapi
 $ # run from the project directory ...
-$ PYTHONPATH=. ES_BASE=&lt;url&gt; uvicorn --reload --log-level debug dplaapi:app
+$ PYTHONPATH=. ES_BASE=&lt;url&gt; -k uvicorn.workers.UvicornWorker \
+  --log-level=debug --reload dplaapi:app
 ```
 The second option works well if you're iterating over changes to the files and
 want to see how they work. The server will reload if you modify code.
@@ -121,10 +122,5 @@ unit test for the module or function that you're editing.
 
 ## Testing
 
-Run these tests before submitting code for review, and especially before merging
-to `master`:
-
-```
-$ pytest
-$ flake8 dplaapi
-```
+Run `make test` before submitting code for review, and especially before merging
+to `master`.
