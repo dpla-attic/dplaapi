@@ -20,6 +20,14 @@ log_levels = {
     'critical': logging.CRITICAL
 }
 
+# This logging configuration used to work with Uvicorn 0.1.1, when running
+# the `uvicorn' executable, but does not anymore with higher versions.
+# It _does_ work when you run in production mode, in a Docker container,
+# with `gunicorn' being passed `-k uvicorn.workers.UvicornWorker', which you
+# can see in `Dockerfile'.
+# Watch https://github.com/encode/uvicorn/issues/179, which may result in
+# a fix.
+#
 logging.basicConfig(level=log_levels[os.getenv('APP_LOG_LEVEL', 'debug')],
                     format='[%(asctime)-15s] [%(process)d] [%(levelname)s] '
                            '[%(module)s]: %(message)s',

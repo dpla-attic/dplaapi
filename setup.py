@@ -35,9 +35,8 @@ setup(name='dplaapi',
       scripts=['bin/devapi'],
       install_requires=[
           'apistar>=0.5<0.6',
-          # uvicorn is pinned to 0.1.1 because log formatting is broken in
-          # higher versions
-          'uvicorn==0.1.1',
+          'uvicorn~=0.3',
+          'gunicorn~=19.9',
           # aiofiles is required by ASyncApp, even though we have no static
           # files
           'aiofiles~=0.3'
