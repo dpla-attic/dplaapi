@@ -5,14 +5,19 @@ import requests
 import dplaapi
 import re
 import json
+import os
+import boto3
+import secrets
 from dplaapi.types import ItemsQueryType
 import dplaapi.search_query
-from dplaapi.exceptions import ServerError
+from dplaapi.exceptions import ServerError, ConflictError
 from dplaapi.search_query import SearchQuery
 from dplaapi.facets import facets
-
+from dplaapi.models import db, Account
+from peewee import OperationalError, DoesNotExist
 
 log = logging.getLogger(__name__)
+ok_email_pat = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
 
 
 def items(params):
@@ -23,6 +28,24 @@ def items(params):
     """
     sq = SearchQuery(params)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
+    if not os.getenv('DISABLE_AUTH'):
+        try:
+            db.connect()
+            account = Account.get(Account.key == params.get('api_key', ''))
+        except (OperationalError, ValueError):
+            # OperationalError indicates a problem connecting, such as when
+            # the database is unavailable.
+            # ValueError indicates that the configured Peewee maximum
+            # connections have been exceeded.
+            # TODO: should be HTTP 503
+            log.exception('Failed to connect to database')
+            raise ServerError('Backend API key account lookup failed')
+        except DoesNotExist:
+            account = None
+        finally:
+            db.close()
+        if not account or not account.enabled:
+            raise exceptions.Forbidden('Invalid or inactive API key')
     try:
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
         resp.raise_for_status()
@@ -152,6 +175,59 @@ def response_object(data, params):
         return http.JSONResponse(data, headers=headers)
 
 
+def send_email(message, destination):
+    """Send email to the given destination, with the given message, and
+    return a dict of the SES response"""
+
+    source = os.getenv('EMAIL_FROM')
+    if not source:
+        log.exception('EMAIL_FROM is undefined in environment')
+        raise ServerError('Can not send email')
+    destination = {'ToAddresses': [destination]}
+    client = boto3.client('ses')
+    client.send_email(
+        Source=source, Destination=destination, Message=message)
+
+
+def send_api_key_email(email, api_key):
+    message = {
+        'Body': {
+            'Text': {
+                'Data': 'Your API key is %s' % api_key
+            }
+        },
+        'Subject': {'Data': 'Your new DPLA API key'}
+    }
+    try:
+        send_email(message, email)
+    except ServerError:
+        raise
+    except Exception:
+        log.exception('Unexpected error')
+        raise ServerError('Could not send API key to %s' % email)
+
+
+def send_reminder_email(email, api_key):
+    message = {
+        'Body': {
+            'Text': {
+                'Data': 'The most recent API key for %s '
+                        'is %s' % (email, api_key)
+            }
+        },
+        'Subject': {'Data': 'Your existing DPLA API key'}
+    }
+    try:
+        send_email(message, email)
+    except ServerError:
+        raise
+    except Exception:
+        log.exception('Unexpected error')
+        raise ServerError('Could not send API key reminder email '
+                          '(Tried to because there is already an api_key for '
+                          'that email)')
+
+
 async def multiple_items(
             params: http.QueryParams) -> http.JSONResponse:
     try:
@@ -169,7 +245,7 @@ async def multiple_items(
         }
         return response_object(rv, goodparams)
 
-    except exceptions.BadRequest:
+    except (exceptions.BadRequest, exceptions.Forbidden):
         raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)
@@ -197,10 +273,47 @@ async def specific_item(id_or_ids: str,
             'docs': [hit['_source'] for hit in result['hits']['hits']]
         }
         return response_object(rv, goodparams)
-    except exceptions.BadRequest:
+    except (exceptions.BadRequest, exceptions.Forbidden):
         raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)
     except Exception as e:
         log.exception('Unexpected error')
         raise ServerError('Unexpected error')
+
+
+async def api_key(email: str) -> dict:
+    """Create a new API key"""
+
+    if not re.match(ok_email_pat, email):
+        raise exceptions.BadRequest('Bad email address')
+
+    try:
+        db.connect()
+    except (OperationalError, ValueError):
+        db.close()  # Must do this to release it to the connection pool
+        log.exception('Failed to connect to database')
+        raise ServerError('Can not create API key')
+
+    try:
+        old_acct = Account.get(
+            Account.email == email, Account.enabled == True)  # noqa: E712
+        send_reminder_email(email, old_acct.key)
+        db.close()
+        raise ConflictError(
+            'There is already an API key for %s.  We have sent a reminder '
+            'message to that address.' % email)
+    except DoesNotExist:
+        # We want for it not to exist yet.
+        # Keep the database connection open.
+        pass
+
+    new_key = secrets.token_hex(16)
+    try:
+        with db.atomic():
+            Account(key=new_key, email=email, enabled=True).save()
+            send_api_key_email(email, new_key)
+    finally:
+        db.close()
+
+    return {'message': 'API key created and sent to %s' % email}

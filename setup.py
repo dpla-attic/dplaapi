@@ -40,7 +40,10 @@ setup(name='dplaapi',
           # aiofiles is required by ASyncApp, even though we have no static
           # files. It's probably there for the /docs endpoint, which we
           # have disabled.
-          'aiofiles~=0.3'
+          'aiofiles~=0.3',
+          'peewee~=3.6',
+          'psycopg2-binary~=2.7',
+          'boto3~=1.8'
       ],
       extras_require={
         'dev': [

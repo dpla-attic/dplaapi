@@ -4,13 +4,17 @@
 import pytest
 import requests
 import json
+import os
+import boto3
+import secrets
 from apistar import test
-from apistar.exceptions import BadRequest, ValidationError
+from apistar.exceptions import Forbidden, BadRequest, ValidationError
 from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
-from dplaapi import search_query, types
+from dplaapi import search_query, types, models
 from dplaapi.handlers import v2 as v2_handlers
-from dplaapi.exceptions import ServerError
+from dplaapi.exceptions import ServerError, ConflictError
+from peewee import OperationalError, DoesNotExist
 
 
 client = test.TestClient(app)
@@ -135,9 +139,60 @@ def mock_application_exception(*args, **kwargs):
     return {'impossible': 1/0}
 
 
+def mock_Account_get(*args, **kwargs):
+    return models.Account(key='08e3918eeb8bf4469924f062072459a8',
+                          email='x@example.org',
+                          enabled=True)
+
+
+def mock_disabled_Account_get(*args, **kwargs):
+    return models.Account(key='08e3918eeb8bf4469924f062072459a8',
+                          email='x@example.org',
+                          enabled=False)
+
+
+def mock_not_found_Account_get(*args, **kwargs):
+    raise DoesNotExist()
+
+
+@pytest.fixture(scope='function')
+def disable_auth():
+    os.environ['DISABLE_AUTH'] = 'true'
+    yield
+    del(os.environ['DISABLE_AUTH'])
+
+
+@pytest.fixture(scope='function')
+def patch_db_connection(monkeypatch):
+
+    def mock_db_connect():
+        return True
+
+    def mock_db_close():
+        return True
+
+    monkeypatch.setattr(models.db, 'connect', mock_db_connect)
+    monkeypatch.setattr(models.db, 'close', mock_db_close)
+    yield
+
+
+@pytest.fixture(scope='function')
+def patch_bad_db_connection(monkeypatch):
+
+    def mock_db_connect(*args, **kwargs):
+        raise OperationalError()
+
+    def mock_db_close():
+        return True
+
+    monkeypatch.setattr(models.db, 'connect', mock_db_connect)
+    monkeypatch.setattr(models.db, 'close', mock_db_close)
+    yield
+
 # items() tests ...
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_items_makes_es_request(monkeypatch):
     """multiple_items() makes an HTTP request to Elasticsearch"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
@@ -145,6 +200,7 @@ def test_items_makes_es_request(monkeypatch):
     v2_handlers.items(params)  # No error
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_items_Exception_for_elasticsearch_errs(monkeypatch):
     """An Elasticsearch error response other than a 400 results in a 500"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
@@ -155,7 +211,68 @@ def test_items_Exception_for_elasticsearch_errs(monkeypatch):
         v2_handlers.items(params)
 
 
+@pytest.mark.usefixtures('patch_db_connection')
+def test_items_connects_and_queries_account(monkeypatch, mocker):
+    """It connects to the database and retrieves the Account"""
+    mocker.patch('dplaapi.models.db.connect')
+    monkeypatch.setattr(models.Account, 'get', mock_Account_get)
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    v2_handlers.items(params)
+    models.db.connect.assert_called_once()
+
+
+@pytest.mark.usefixtures('patch_db_connection')
+def test_items_returns_Forbidden_for_disabled_account(monkeypatch, mocker):
+    """It returns HTTP 403 Forbidden if the Account is disabled"""
+    mocker.patch('dplaapi.models.db.connect')
+    monkeypatch.setattr(models.Account, 'get', mock_disabled_Account_get)
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    with pytest.raises(Forbidden):
+        v2_handlers.items(params)
+
+
+@pytest.mark.usefixtures('patch_db_connection')
+def test_items_returns_Forbidden_for_bad_api_key(monkeypatch, mocker):
+    """It returns HTTP 403 Forbidden if the Account is disabled"""
+    mocker.patch('dplaapi.models.db.connect')
+    monkeypatch.setattr(models.Account, 'get', mock_not_found_Account_get)
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    with pytest.raises(Forbidden):
+        v2_handlers.items(params)
+
+
+@pytest.mark.usefixtures('patch_bad_db_connection')
+def test_items_returns_ServerError_for_bad_db_connection(monkeypatch, mocker):
+    """It returns Server Error if it can't connect to the database"""
+    # FIXME: Should return HTTP 503 when we have that exception class
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    with pytest.raises(ServerError):
+        v2_handlers.items(params)
+
+
 # multiple_items() tests ...
+
 
 def test_multiple_items_calls_items_correctly(monkeypatch):
     """/v2/items calls items() with dictionary"""
@@ -167,6 +284,7 @@ def test_multiple_items_calls_items_correctly(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
 async def test_multiple_items_formats_response_metadata(monkeypatch):
     """multiple_items() assembles the correct response metadata"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
@@ -192,6 +310,7 @@ async def test_multiple_items_BadRequest_for_bad_param_value():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
 async def test_multiple_items_BadRequest_for_unparseable_term(monkeypatch):
     """User input that is unparseable by Elasticsearch results in a 400"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_400)
@@ -216,8 +335,9 @@ async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
 async def test_multiple_items_handles_query_parameters(monkeypatch):
-    """items() makes a good `goodparams' dict from querystring params"""
+    """multiple_items() makes a good `goodparams' from querystring params"""
     def mock_searchquery(params_to_check):
         assert params_to_check == {'q': 'test'}
         return {}
@@ -225,6 +345,19 @@ async def test_multiple_items_handles_query_parameters(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     params = QueryParams({'q': 'test'})
     await v2_handlers.multiple_items(params)
+
+
+@pytest.mark.asyncio
+async def test_multiple_items_reraises_Forbidden(monkeypatch):
+    """It reraises a Forbidden that gets thrown in items()"""
+
+    def mock_forbidden_items(*args):
+        raise Forbidden()
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_forbidden_items)
+    params = QueryParams({'q': 'test'})
+    with pytest.raises(Forbidden):
+        await v2_handlers.multiple_items(params)
 
 
 # end multiple_items tests.
@@ -295,7 +428,212 @@ async def test_specific_item_BadRequest_for_ValidationError(monkeypatch):
     with pytest.raises(BadRequest):
         await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a', {})
 
+
+@pytest.mark.asyncio
+async def test_specific_items_reraises_Forbidden(monkeypatch):
+    """It reraises a Forbidden that gets thrown in items()"""
+
+    def mock_forbidden_items(*args):
+        raise Forbidden()
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_forbidden_items)
+    with pytest.raises(Forbidden):
+        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a', {})
+
+
 # end specific_items tests.
+
+
+# begin api_key and related tests
+
+class MockBoto3Client():
+    def send_email(*args):
+        pass
+
+
+def mock_boto3_client_factory(*args):
+    return MockBoto3Client()
+
+
+def test_send_email_uses_correct_source_and_destination(monkeypatch, mocker):
+    """It makes the boto3 send_email call with the right parameters"""
+    from_email = 'testfrom@example.org'
+    to_email = 'testto@example.org'
+
+    monkeypatch.setenv('EMAIL_FROM', from_email)
+    monkeypatch.setattr(boto3, 'client', mock_boto3_client_factory)
+    send_email_stub = mocker.stub()
+    monkeypatch.setattr(MockBoto3Client, 'send_email', send_email_stub)
+
+    v2_handlers.send_email('x', to_email)
+    send_email_stub.assert_called_once_with(
+        Destination={'ToAddresses': ['testto@example.org']},
+        Message='x',
+        Source='testfrom@example.org')
+
+
+def test_send_email_raises_ServerError_for_no_EMAIL_FROM(monkeypatch, mocker):
+    """It raises ServerError when the EMAIL_FROM env. var. is undefined"""
+    monkeypatch.delenv('EMAIL_FROM', raising=False)
+    with pytest.raises(ServerError):
+        v2_handlers.send_email('x', 'testto@example.org')
+
+
+def test_send_api_key_email_calls_send_email_w_correct_params(monkeypatch,
+                                                              mocker):
+    """It calls send_email() with the correct parameters"""
+    send_email_stub = mocker.stub()
+    monkeypatch.setattr(v2_handlers, 'send_email', send_email_stub)
+    v2_handlers.send_api_key_email('x@example.org', 'a1b2c3')
+    send_email_stub.assert_called_once_with(
+        {
+            'Body': {
+                'Text': {
+                    'Data': 'Your API key is a1b2c3'
+                }
+            },
+            'Subject': {'Data': 'Your new DPLA API key'}
+        },
+        'x@example.org'
+    )
+
+
+def test_send_api_key_email_reraises_ServerError(monkeypatch):
+    def naughty_send_email(*args):
+        raise ServerError('No.')
+
+    monkeypatch.setattr(v2_handlers, 'send_email', naughty_send_email)
+    with pytest.raises(ServerError):
+        v2_handlers.send_api_key_email('x@example.org', 'a1b2c3')
+
+
+def test_send_api_key_email_raises_ServerError_for_Exception(monkeypatch):
+    def buggy_send_email(*args):
+        1/0
+
+    monkeypatch.setattr(v2_handlers, 'send_email', buggy_send_email)
+    with pytest.raises(ServerError):
+        v2_handlers.send_api_key_email('x@example.org', 'a1b2c3')
+
+
+def test_send_reminder_email_calls_send_email_w_correct_params(monkeypatch,
+                                                               mocker):
+    """It calls send_email with the correct parameters."""
+    send_email_stub = mocker.stub()
+    monkeypatch.setattr(v2_handlers, 'send_email', send_email_stub)
+    v2_handlers.send_reminder_email('x@example.org', 'a1b2c3')
+    send_email_stub.assert_called_once_with(
+        {
+            'Body': {
+                'Text': {
+                    'Data': 'The most recent API key for x@example.org '
+                            'is a1b2c3'
+                }
+            },
+            'Subject': {'Data': 'Your existing DPLA API key'}
+        },
+        'x@example.org'
+    )
+
+
+def test_send_reminder_email_reraises_ServerError(monkeypatch):
+    def naughty_send_email(*args):
+        raise ServerError('No.')
+
+    monkeypatch.setattr(v2_handlers, 'send_email', naughty_send_email)
+    with pytest.raises(ServerError):
+        v2_handlers.send_reminder_email('x@example.org', 'a1b2c3')
+
+
+def test_send_reminder_email_raises_ServerError_for_Exception(monkeypatch):
+    def buggy_send_email(*args):
+        1/0
+
+    monkeypatch.setattr(v2_handlers, 'send_email', buggy_send_email)
+    with pytest.raises(ServerError):
+        v2_handlers.send_reminder_email('x@example.org', 'a1b2c3')
+
+
+@pytest.mark.asyncio
+async def test_api_key_flunks_bad_email():
+    """api_key() rejects an obviously malformed email address"""
+    # But only the most obvious cases involving misplaced '@' or lack of '.'
+    bad_addrs = ['f@@ey', '56b7165e4f8a54b4faf1e04c46a6145c']
+    for addr in bad_addrs:
+        with pytest.raises(BadRequest):
+            await v2_handlers.api_key(addr)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('patch_db_connection')
+async def test_api_key_bails_if_account_exists_for_email(monkeypatch, mocker):
+    """api_key() quits and sends a reminder email if there's already an Account
+    for the given email"""
+    def mock_get(*args, **kwargs):
+        return models.Account(email='x@example.org',
+                              key='08e3918eeb8bf4469924f062072459a8')
+
+    monkeypatch.setattr(models.Account, 'get', mock_get)
+    stub = mocker.stub()
+    monkeypatch.setattr(v2_handlers, 'send_reminder_email', stub)
+    with pytest.raises(ConflictError):
+        await v2_handlers.api_key('x@example.org')
+    stub.assert_called_once_with('x@example.org',
+                                 '08e3918eeb8bf4469924f062072459a8')
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('patch_bad_db_connection')
+async def test_api_key_raises_ServerError_for_bad_db_connection(monkeypatch,
+                                                                mocker):
+    """api_key() raises ServerError if it can't connect to the database"""
+    with pytest.raises(ServerError):
+        await v2_handlers.api_key('x@example.org')
+
+
+# Fixture for the following two tests
+@pytest.fixture(scope='function')
+def good_api_key_invocation(monkeypatch, mocker):
+
+    def mock_token_hex(*args):
+        return '08e3918eeb8bf4469924f062072459a8'
+
+    def mock_get(*args, **kwargs):
+        raise DoesNotExist()
+
+    class AtomicContextMgr(object):
+        def __enter__(self):
+            pass
+
+        def __exit__(self, *args, **kwargs):
+            pass
+
+    monkeypatch.setattr(secrets, 'token_hex', mock_token_hex)
+    monkeypatch.setattr(models.Account, 'get', mock_get)
+    send_email_stub = mocker.stub()
+    monkeypatch.setattr(v2_handlers, 'send_api_key_email', send_email_stub)
+    save_stub = mocker.stub()
+    monkeypatch.setattr(models.Account, 'save', save_stub)
+    monkeypatch.setattr(models.db, 'atomic', AtomicContextMgr)
+    yield
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('patch_db_connection')
+@pytest.mark.usefixtures('good_api_key_invocation')
+async def test_api_key_creates_account(monkeypatch, mocker):
+    """api_key() creates a new Account record & defines the right fields"""
+
+    mocker.spy(models.Account, '__init__')
+    await v2_handlers.api_key('x@example.org')
+
+    models.Account.__init__.assert_called_with(
+        mocker.ANY,
+        key='08e3918eeb8bf4469924f062072459a8',
+        email='x@example.org',
+        enabled=True)
+
+# end api_key tests
 
 
 def test_geo_facets():
@@ -448,6 +786,7 @@ def test_response_object_returns_correct_Response_for_JSONP_request():
 # Exception-handling and HTTP status double-checks
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_elasticsearch_500_means_client_500(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
     response = client.get('/v2/items')
@@ -461,6 +800,7 @@ def test_elasticsearch_503_means_client_503(monkeypatch):
     pass
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_elasticsearch_400_means_client_400(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_400)
     response = client.get('/v2/items?q=some+bad+search')
@@ -468,6 +808,7 @@ def test_elasticsearch_400_means_client_400(monkeypatch):
     assert response.json() == 'Invalid query'
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_elasticsearch_404_means_client_500(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_404)
     response = client.get('/v2/items')
@@ -496,13 +837,13 @@ def test_ItemsQueryType_Exception_means_client_500(monkeypatch):
     assert response.json() == 'Unexpected error'
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_search_query_Exception_means_client_500(monkeypatch):
-    # have q_fields_clause_items raise KeyError
 
     def problem_func(*args, **kwargs):
         raise KeyError()
 
-    monkeypatch.setattr(search_query, 'q_fields_clause', problem_func)
+    monkeypatch.setattr(search_query.SearchQuery, '__init__', problem_func)
     response = client.get('/v2/items')
     assert response.status_code == 500
     assert response.json() == 'Unexpected error'

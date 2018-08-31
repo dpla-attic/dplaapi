@@ -27,6 +27,9 @@ The application will be available with the following endpoints:
 
 See [the API Codex](https://pro.dp.la/developers/api-codex) for usage.
 
+The PostgreSQL database Docker container that is included in that setup contains
+a user account for testing. Its API key is `08e3918eeb8bf4469924f062072459a8`.
+
 You can press ctrl-C to stop following the logs, then:
 ```
 $ docker-compose down
@@ -43,8 +46,34 @@ The application recognizes the following environment variables.
 * `APP_LOG_LEVEL`: The logging level of the `dplaapi` application; as distinct
   from the middleware, e.g. `uvicorn`.  ("debug" | "info" | "warning" |
   "error" | "critical"). Defaults to "debug".
+* `DISABLE_AUTH`: If this is defined, then checking of API keys will be disabled.
+You will also be able to get by without PostgreSQL, because the database won't
+be used.
+* `EMAIL_FROM`: Email "From:" address for sending API key emails.
+* `POSTGRES_DATABASE`: The database name
+* `POSTGRES_HOST`: The database hostname.  For example, 'localhost'.
+* `POSTGRES_PASSWORD`: The database password.
 
-Running natively (in development), you can pass the variables like this:
+The following environment variables may be defined, but are optional and have
+defaults.  See
+[the Peewee ORM documentation](http://docs.peewee-orm.com/en/latest/peewee/playhouse.html#pool-apis).
+
+* `POSTGRES_MAX_CONN`
+* `POSTGRES_TIMEOUT`
+* `POSTGRES_STALE_TIMEOUT`
+
+Additionally, there are some environment variables that may be necessary in
+order to configure Amazon SES (Simple Email Service).  SES is used for sending
+out API key notifications. This is not necessary for development or
+demonstration usage, since you are provided with a test account, as indicated
+above. The production application could actually be deployed with
+IAM EC2 instance profiles, which obviate the need for these variables. Whatever
+the case, these standard variables are:
+
+* `AWS_ACCESS_KEY_ID`
+* `AWS_SECRET_ACCESS_KEY`
+
+Running natively (in development), you can pass environment variables like this:
 ```
 $ PYTHONPATH=. ES_BASE=http://example:9200/dpla_alias gunicorn \
   -k uvicorn.workers.UvicornWorker dplaapi:app
