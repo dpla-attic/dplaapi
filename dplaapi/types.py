@@ -472,11 +472,11 @@ class ItemsQueryType(dict):
             self['page_size'] = 500
 
         if self['page'] > 100:
-            # Meanwhile, this is a limit that we've had to impose since the
-            # original version of the API came out, due to availability issues.
-            # We're responding with an error to make it clear that this won't
-            # work anymore if it's been expected to.  Unlike the page_size
-            # condition above, where the API Codex always said that the
-            # maximum page size was 500, this warrants alerting the user.
+            # Meanwhile, this is a limit that we've had to impose since after
+            # the original version of the API came out, due to availability
+            # issues. We're responding with an error to make it clear that this
+            # won't work anymore if it's been expected to.  Unlike the
+            # page_size condition above, where the API Codex always said that
+            # the maximum page size was 500, this warrants alerting the user.
             raise apistar.exceptions.ValidationError(
                 'The maximum page number is 100.')
