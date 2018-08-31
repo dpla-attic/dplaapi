@@ -12,30 +12,27 @@ A web API for querying the
 The Docker installation is going to be the closest thing you can get to
 production.
 
-Quick walkthrough
+## Quick walkthrough
 
 ```
 $ cd /path/to/dplaapi
-$ docker build -t dplaapi:dev .
-$ docker run --rm -d -p 8000:8000 --name dplaapi \
-  -e ES_BASE=http://elasticsearch-server:9200/dpla_alias dplaapi:dev
-$ docker container logs -f dplaapi
+$ docker-compose up
 ```
 
 Make some requests, observe logging, etc.
 The application will be available with the following endpoints:
 
-* http://localhost:8000/schema/  (Note trailing slash)
-* http://localhost:8000/search?term=search+term
-* http://localhost:8000/req-info  (just for testing at the moment)
+* `http://localhost:8000/v2/items`
+* `http://localhost:8000/v2/items/<item ID>`
 
+See [the API Codex](https://pro.dp.la/developers/api-codex) for usage.
+
+You can press ctrl-C to stop following the logs, then:
 ```
-$ docker container stop dplaapi
+$ docker-compose down
 ```
 
-### Native (For development)
-
-See [Development.md](./Development.md)
+See [Development.md](./Development.md) for more ways to run the application.
 
 ### Environment Variables
 

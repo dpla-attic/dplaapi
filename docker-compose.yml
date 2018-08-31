@@ -1,0 +1,32 @@
+---
+
+version: '3'
+services:
+    dplaapi:
+        build: .
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/opt/dplaapi
+        environment:
+            ES_BASE: http://elasticsearch:9200/dpla_alias
+            APP_LOG_LEVEL: info
+            POSTGRES_HOST: postgres
+            POSTGRES_USER: dplaapi
+            POSTGRES_PASSWORD: devpassword
+            POSTGRES_DATABASE: dplaapi
+    postgres:
+        image: mbdpla/dplaapi_postgresql:latest
+        ports:
+            - "5432:5432"
+        environment:
+            # The password for the 'postgres' admin user. For development, this
+            # is the same password as for the 'devapi' user above.
+            POSTGRES_PASSWORD: devpassword
+    elasticsearch:
+        image: mbdpla/dplaapi_elasticsearch:latest
+        ports:
+            - "9200:9200"
+        environment:
+            "discovery.type": "single-node"
+
