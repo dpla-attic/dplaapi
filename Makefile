@@ -15,4 +15,5 @@ zip: clean
 
 test:
 	pytest --cov=dplaapi
+	coverage html
 	flake8 dplaapi tests
