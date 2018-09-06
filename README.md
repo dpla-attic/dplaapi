@@ -14,6 +14,11 @@ production.
 
 ## Quick walkthrough
 
+If you already have a Docker image named `dplaapi_dplaapi:latest`, then remove
+that image with `docker image rm`. If you have never run `docker-compose`
+before, then this won't concern you.
+
+Moving along:
 ```
 $ cd /path/to/dplaapi
 $ docker-compose up
