@@ -17,7 +17,7 @@ from dplaapi.exceptions import ServerError, ConflictError
 from peewee import OperationalError, DoesNotExist
 
 
-client = test.TestClient(app)
+client = test.TestClient(app, hostname='localhost')
 
 
 minimal_good_response = {

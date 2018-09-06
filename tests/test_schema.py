@@ -3,7 +3,7 @@ from apistar import test
 from dplaapi import app
 
 
-client = test.TestClient(app)
+client = test.TestClient(app, hostname='localhost')
 
 
 def test_schema():
