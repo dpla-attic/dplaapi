@@ -268,12 +268,14 @@ async def specific_item(id_or_ids: str,
         goodparams.update({'ids': ids})
         goodparams['page_size'] = len(ids)
         result = items(goodparams)
+        if result['hits']['total'] == 0:
+            raise exceptions.NotFound()
         rv = {
             'count': result['hits']['total'],
             'docs': [hit['_source'] for hit in result['hits']['hits']]
         }
         return response_object(rv, goodparams)
-    except (exceptions.BadRequest, exceptions.Forbidden):
+    except (exceptions.BadRequest, exceptions.Forbidden, exceptions.NotFound):
         raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)

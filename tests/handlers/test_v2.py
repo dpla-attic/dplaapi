@@ -8,7 +8,7 @@ import os
 import boto3
 import secrets
 from apistar import test
-from apistar.exceptions import Forbidden, BadRequest, ValidationError
+from apistar.exceptions import Forbidden, NotFound, BadRequest, ValidationError
 from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
 from dplaapi import search_query, types, models
@@ -438,6 +438,18 @@ async def test_specific_items_reraises_Forbidden(monkeypatch):
 
     monkeypatch.setattr(v2_handlers, 'items', mock_forbidden_items)
     with pytest.raises(Forbidden):
+        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a', {})
+
+
+@pytest.mark.asyncio
+async def test_specific_item_NotFound_for_zero_hits(monkeypatch):
+    """It raises a NotFound if there are no documents"""
+
+    def mock_zero_items(*args):
+        return {'hits': {'total': 0}}
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_zero_items)
+    with pytest.raises(NotFound):
         await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a', {})
 
 
