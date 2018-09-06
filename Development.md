@@ -23,7 +23,8 @@ you can easily `deactivate; rm -r venv` to start over from scratch and do
 1. `. venv/bin/activate`  (Or `source venv/bin/activate` if `.` doesn't work in
 your shell.)
 1. `pip install -r requirements.txt`
-1. `pip install -e .[dev]`
+1. `pip install -e .[dev]` (And ignore any `FileNotFoundError` that says that
+there is no such `.egg` file for the `dplaapi` package.)
 1. Then see the "Workflow" section below.
 
 ## Dependencies
