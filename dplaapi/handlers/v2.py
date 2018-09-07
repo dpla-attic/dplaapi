@@ -165,13 +165,20 @@ def compact(doc, params):
     return rv
 
 
+def response_headers(content_type):
+    return {
+        'Content-Type': content_type,
+        'Access-Control-Allow-Origin': '*'
+    }
+
+
 def response_object(data, params):
     if 'callback' in params:
-        headers = {'Content-Type': 'application/javascript'}
+        headers = response_headers('application/javascript')
         content = "%s(%s)" % (params['callback'], json.dumps(data))
         return http.Response(content=content, headers=headers)
     else:
-        headers = {'Content-Type': 'application/json; charset=utf-8'}
+        headers = response_headers('application/json; charset=utf-8')
         return http.JSONResponse(data, headers=headers)
 
 
@@ -319,3 +326,11 @@ async def api_key(email: str) -> dict:
         db.close()
 
     return {'message': 'API key created and sent to %s' % email}
+
+
+async def api_key_options() -> http.Response:
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST'
+    }
+    return http.Response(content='', headers=headers)

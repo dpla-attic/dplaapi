@@ -645,6 +645,15 @@ async def test_api_key_creates_account(monkeypatch, mocker):
         email='x@example.org',
         enabled=True)
 
+
+def test_api_key_options():
+    """OPTIONS /api_key works as designed"""
+    response = client.options('/v2/api_key')
+    assert response.status_code == 200
+    assert response.headers['Access-Control-Allow-Origin'] == '*'
+    assert response.headers['Access-Control-Allow-Methods'] == 'POST'
+
+
 # end api_key tests
 
 
