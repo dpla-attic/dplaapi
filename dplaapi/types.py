@@ -100,6 +100,13 @@ items_params = {
             max_length=32,
             pattern=r'^[a-f0-9]{32}$',
             allow_null=True),
+    'admin.contributingInstitution': apistar.validators.String(
+            title='Contributing Institution',
+            description='Contributing Institution, a concatenation of '
+                        'dataProvider and intermediateProvider',
+            min_length=2,
+            max_length=200,
+            allow_null=True),
     'sourceResource.title': apistar.validators.String(
             title='Title',
             description='Primary name given to ' + sr,
