@@ -28,24 +28,6 @@ def items(params):
     """
     sq = SearchQuery(params)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
-    if not os.getenv('DISABLE_AUTH'):
-        try:
-            db.connect()
-            account = Account.get(Account.key == params.get('api_key', ''))
-        except (OperationalError, ValueError):
-            # OperationalError indicates a problem connecting, such as when
-            # the database is unavailable.
-            # ValueError indicates that the configured Peewee maximum
-            # connections have been exceeded.
-            # TODO: should be HTTP 503
-            log.exception('Failed to connect to database')
-            raise ServerError('Backend API key account lookup failed')
-        except DoesNotExist:
-            account = None
-        finally:
-            db.close()
-        if not account or not account.enabled:
-            raise exceptions.Forbidden('Invalid or inactive API key')
     try:
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
         resp.raise_for_status()
@@ -235,8 +217,41 @@ def send_reminder_email(email, api_key):
                           'that email)')
 
 
+def account_from_params(params):
+    """Return an account for the API key extracted from the given parameters
+
+    Return the Account or None if authentication is disabled.
+    """
+    if not os.getenv('DISABLE_AUTH'):
+        account = None
+        try:
+            db.connect()
+            account = Account.get(Account.key == params.get('api_key', ''))
+        except (OperationalError, ValueError):
+            # OperationalError indicates a problem connecting, such as when
+            # the database is unavailable.
+            # ValueError indicates that the configured Peewee maximum
+            # connections have been exceeded.
+            # TODO: should be HTTP 503
+            log.exception('Failed to connect to database')
+            raise ServerError('Backend API key account lookup failed')
+        except DoesNotExist:
+            # Do not assign account ...
+            pass
+        finally:
+            db.close()
+
+        if not account or not account.enabled:
+            raise exceptions.Forbidden('Invalid or inactive API key')
+
+        return account
+
+    return None
+
+
 async def multiple_items(
             params: http.QueryParams) -> http.JSONResponse:
+    account = account_from_params(params)
     try:
         goodparams = ItemsQueryType({k: v for [k, v] in params})
         result = items(goodparams)
@@ -250,6 +265,10 @@ async def multiple_items(
                      for hit in result['hits']['hits']],
             'facets': formatted_facets(result.get('aggregations', {}))
         }
+
+        if account and not account.staff:
+            log.debug('TODO: analytics')
+
         return response_object(rv, goodparams)
 
     except (exceptions.BadRequest, exceptions.Forbidden):
@@ -263,6 +282,7 @@ async def multiple_items(
 
 async def specific_item(id_or_ids: str,
                         params: http.QueryParams) -> dict:
+    account = account_from_params(params)
     try:
         for k in list(params):        # list of tuples
             if k[0] != 'callback' and k[0] != 'api_key':
@@ -275,13 +295,20 @@ async def specific_item(id_or_ids: str,
         goodparams.update({'ids': ids})
         goodparams['page_size'] = len(ids)
         result = items(goodparams)
+
         if result['hits']['total'] == 0:
             raise exceptions.NotFound()
+
         rv = {
             'count': result['hits']['total'],
             'docs': [hit['_source'] for hit in result['hits']['hits']]
         }
+
+        if account and not account.staff:
+            log.debug('TODO: analytics')
+
         return response_object(rv, goodparams)
+
     except (exceptions.BadRequest, exceptions.Forbidden, exceptions.NotFound):
         raise
     except exceptions.ValidationError as e:

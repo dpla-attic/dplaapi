@@ -189,6 +189,79 @@ def patch_bad_db_connection(monkeypatch):
     monkeypatch.setattr(models.db, 'close', mock_db_close)
     yield
 
+
+@pytest.fixture(scope='function')
+def disable_api_key_check(monkeypatch, mocker):
+    acct_stub = mocker.stub()
+    monkeypatch.setattr(v2_handlers, 'account_from_params', acct_stub)
+    yield
+
+# account_from_params() tests ...
+
+
+@pytest.mark.usefixtures('patch_db_connection')
+def test_account_from_params_queries_account(monkeypatch, mocker):
+    """It connects to the database and retrieves the Account"""
+    mocker.patch('dplaapi.models.db.connect')
+    monkeypatch.setattr(models.Account, 'get', mock_Account_get)
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    v2_handlers.account_from_params(params)
+    models.db.connect.assert_called_once()
+
+
+@pytest.mark.usefixtures('patch_db_connection')
+def test_account_from_params_returns_for_disabled_acct(monkeypatch, mocker):
+    """It returns HTTP 403 Forbidden if the Account is disabled"""
+    mocker.patch('dplaapi.models.db.connect')
+    monkeypatch.setattr(models.Account, 'get', mock_disabled_Account_get)
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    with pytest.raises(Forbidden):
+        v2_handlers.account_from_params(params)
+
+
+@pytest.mark.usefixtures('patch_db_connection')
+def test_account_from_params_bad_api_key(monkeypatch, mocker):
+    """It returns HTTP 403 Forbidden if the Account is disabled"""
+    mocker.patch('dplaapi.models.db.connect')
+    monkeypatch.setattr(models.Account, 'get', mock_not_found_Account_get)
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    with pytest.raises(Forbidden):
+        v2_handlers.account_from_params(params)
+
+
+@pytest.mark.usefixtures('patch_bad_db_connection')
+def test_account_from_params_ServerError_bad_db(monkeypatch, mocker):
+    """It returns Server Error if it can't connect to the database"""
+    # FIXME: Should return HTTP 503 when we have that exception class
+    params = {
+        'api_key': '08e3918eeb8bf4469924f062072459a8',
+        'from': 0,
+        'page': 1,
+        'page_size': 1
+    }
+    with pytest.raises(ServerError):
+        v2_handlers.account_from_params(params)
+
+
+# end account_from_params() tests
+
+
 # items() tests ...
 
 
@@ -208,66 +281,6 @@ def test_items_Exception_for_elasticsearch_errs(monkeypatch):
     # 400 Bad Request.  Say a 500 Server Error, or a 404.
     params = {'q': 'goodquery', 'from': 0, 'page': 1, 'page_size': 1}
     with pytest.raises(Exception):
-        v2_handlers.items(params)
-
-
-@pytest.mark.usefixtures('patch_db_connection')
-def test_items_connects_and_queries_account(monkeypatch, mocker):
-    """It connects to the database and retrieves the Account"""
-    mocker.patch('dplaapi.models.db.connect')
-    monkeypatch.setattr(models.Account, 'get', mock_Account_get)
-    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    params = {
-        'api_key': '08e3918eeb8bf4469924f062072459a8',
-        'from': 0,
-        'page': 1,
-        'page_size': 1
-    }
-    v2_handlers.items(params)
-    models.db.connect.assert_called_once()
-
-
-@pytest.mark.usefixtures('patch_db_connection')
-def test_items_returns_Forbidden_for_disabled_account(monkeypatch, mocker):
-    """It returns HTTP 403 Forbidden if the Account is disabled"""
-    mocker.patch('dplaapi.models.db.connect')
-    monkeypatch.setattr(models.Account, 'get', mock_disabled_Account_get)
-    params = {
-        'api_key': '08e3918eeb8bf4469924f062072459a8',
-        'from': 0,
-        'page': 1,
-        'page_size': 1
-    }
-    with pytest.raises(Forbidden):
-        v2_handlers.items(params)
-
-
-@pytest.mark.usefixtures('patch_db_connection')
-def test_items_returns_Forbidden_for_bad_api_key(monkeypatch, mocker):
-    """It returns HTTP 403 Forbidden if the Account is disabled"""
-    mocker.patch('dplaapi.models.db.connect')
-    monkeypatch.setattr(models.Account, 'get', mock_not_found_Account_get)
-    params = {
-        'api_key': '08e3918eeb8bf4469924f062072459a8',
-        'from': 0,
-        'page': 1,
-        'page_size': 1
-    }
-    with pytest.raises(Forbidden):
-        v2_handlers.items(params)
-
-
-@pytest.mark.usefixtures('patch_bad_db_connection')
-def test_items_returns_ServerError_for_bad_db_connection(monkeypatch, mocker):
-    """It returns Server Error if it can't connect to the database"""
-    # FIXME: Should return HTTP 503 when we have that exception class
-    params = {
-        'api_key': '08e3918eeb8bf4469924f062072459a8',
-        'from': 0,
-        'page': 1,
-        'page_size': 1
-    }
-    with pytest.raises(ServerError):
         v2_handlers.items(params)
 
 
@@ -301,7 +314,9 @@ async def test_multiple_items_formats_response_metadata(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_multiple_items_BadRequest_for_bad_param_value():
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_multiple_items_BadRequest_for_bad_param_value(monkeypatch,
+                                                             mocker):
     """Input is validated and bad values for fields with constraints result in
     400 Bad Request responses"""
     params = QueryParams({'rights': "Not the URL it's supposed to be"})
@@ -323,7 +338,9 @@ async def test_multiple_items_BadRequest_for_unparseable_term(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch):
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch,
+                                                                 mocker):
     """A bug in our application that raises an Exception results in
     a ServerError (HTTP 500) with a generic message"""
     monkeypatch.setattr(
@@ -365,7 +382,8 @@ async def test_multiple_items_reraises_Forbidden(monkeypatch):
 # specific_items tests ...
 
 
-def test_specific_item_path(mocker):
+@pytest.mark.usefixtures('disable_api_key_check')
+def test_specific_item_path(monkeypatch, mocker):
     """/v2/items/{id} calls items() with correct 'ids' parameter"""
     mocker.patch('dplaapi.handlers.v2.items')
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
@@ -375,25 +393,27 @@ def test_specific_item_path(mocker):
 
 
 @pytest.mark.asyncio
-async def test_specific_item_handles_multiple_ids(monkeypatch):
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_item_handles_multiple_ids(monkeypatch, mocker):
     """It splits ids on commas and calls items() with a list of those IDs"""
-    ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
-
     def mock_items(arg):
         assert len(arg['ids']) == 2
         return minimal_good_response
 
+    ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
     await v2_handlers.specific_item(ids, QueryParams({}))
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_rejects_bad_ids_1():
     with pytest.raises(BadRequest):
         await v2_handlers.specific_item('x', QueryParams({}))
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_rejects_bad_ids_2():
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867'
     with pytest.raises(BadRequest):
@@ -401,6 +421,7 @@ async def test_specific_item_rejects_bad_ids_2():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_accepts_callback_querystring_param(monkeypatch):
 
     def mock_items(arg):
@@ -412,6 +433,7 @@ async def test_specific_item_accepts_callback_querystring_param(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_rejects_bad_querystring_param():
     with pytest.raises(BadRequest):
         await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
@@ -419,6 +441,7 @@ async def test_specific_item_rejects_bad_querystring_param():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_BadRequest_for_ValidationError(monkeypatch):
 
     def mock_items(arg):
@@ -442,6 +465,7 @@ async def test_specific_items_reraises_Forbidden(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_NotFound_for_zero_hits(monkeypatch):
     """It raises a NotFound if there are no documents"""
 
@@ -837,6 +861,7 @@ def test_elasticsearch_404_means_client_500(monkeypatch):
     assert response.json() == 'Unexpected error'
 
 
+@pytest.mark.usefixtures('disable_api_key_check')
 def test_ItemsQueryType_ValidationError_means_client_400(monkeypatch):
 
     def badinit(*args, **kwargs):
@@ -847,6 +872,7 @@ def test_ItemsQueryType_ValidationError_means_client_400(monkeypatch):
     assert response.status_code == 400
 
 
+@pytest.mark.usefixtures('disable_api_key_check')
 def test_ItemsQueryType_Exception_means_client_500(monkeypatch):
 
     def badinit(*args, **kwargs):
