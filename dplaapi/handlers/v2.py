@@ -14,6 +14,7 @@ from dplaapi.exceptions import ServerError, ConflictError
 from dplaapi.search_query import SearchQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
+from dplaapi.analytics import track
 from peewee import OperationalError, DoesNotExist
 
 log = logging.getLogger(__name__)
@@ -249,8 +250,8 @@ def account_from_params(params):
     return None
 
 
-async def multiple_items(
-            params: http.QueryParams) -> http.JSONResponse:
+async def multiple_items(params: http.QueryParams,
+                         request: http.Request) -> http.JSONResponse:
     account = account_from_params(params)
     try:
         goodparams = ItemsQueryType({k: v for [k, v] in params})
@@ -267,7 +268,7 @@ async def multiple_items(
         }
 
         if account and not account.staff:
-            log.debug('TODO: analytics')
+            track(request, rv, account.key, 'Item search results')
 
         return response_object(rv, goodparams)
 
@@ -281,7 +282,8 @@ async def multiple_items(
 
 
 async def specific_item(id_or_ids: str,
-                        params: http.QueryParams) -> dict:
+                        params: http.QueryParams,
+                        request: http.Request) -> dict:
     account = account_from_params(params)
     try:
         for k in list(params):        # list of tuples
@@ -305,7 +307,7 @@ async def specific_item(id_or_ids: str,
         }
 
         if account and not account.staff:
-            log.debug('TODO: analytics')
+            track(request, rv, account.key, 'Fetch items')
 
         return response_object(rv, goodparams)
 

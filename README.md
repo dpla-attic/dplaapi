@@ -58,6 +58,8 @@ be used.
 * `POSTGRES_DATABASE`: The database name
 * `POSTGRES_HOST`: The database hostname.  For example, 'localhost'.
 * `POSTGRES_PASSWORD`: The database password.
+* `GA_TID`: Google Analytics property ID. If undefined, then no tracking will
+happen.
 
 The following environment variables may be defined, but are optional and have
 defaults.  See
