@@ -166,8 +166,7 @@ def response_object(data, params):
 
 
 def send_email(message, destination):
-    """Send email to the given destination, with the given message, and
-    return a dict of the SES response"""
+    """Send email to the given destination, with the given message"""
 
     source = os.getenv('EMAIL_FROM')
     if not source:
