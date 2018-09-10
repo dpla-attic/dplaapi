@@ -60,7 +60,7 @@ def test_GATracker_run_just_calls_other_functions(monkeypatch, mocker):
 
 def test_GATracker_constructs_correct_pageview_data(monkeypatch, mocker):
     post_stub = mocker.stub()
-    monkeypatch.setattr(analytics.GATracker, 'post', post_stub)
+    monkeypatch.setattr(analytics, 'post', post_stub)
     # [('t', 'pageview'), ('dh', 'example.org'), ('dp', '/?'),
     #  ('dt', 'The Title'), ('cid', 'a1b2c3')]
     body = "t=pageview&dh=example.org&dp=%2F%3F&dt=The+Title&cid=a1b2c3" \
@@ -72,7 +72,7 @@ def test_GATracker_constructs_correct_pageview_data(monkeypatch, mocker):
 
 def test_GATracker_constructs_correct_event_data(monkeypatch, mocker):
     post_stub = mocker.stub()
-    monkeypatch.setattr(analytics.GATracker, 'post', post_stub)
+    monkeypatch.setattr(analytics, 'post', post_stub)
     # [('t', 'event'),
     #  ('ec', 'View API Item : Partner X'),
     #  ('ea', 'Library of X'),
@@ -92,11 +92,11 @@ def test_GATracker_constructs_correct_event_data(monkeypatch, mocker):
         'http://www.google-analytics.com/batch', body)
 
 
-def test_GATracker_logs_exception(monkeypatch, mocker):
+def test_post_logs_exception(monkeypatch, mocker):
     monkeypatch.setattr(requests, 'post', mock_failing_ga_post)
     mocker.spy(logging.Logger, 'exception')
     with pytest.raises(Exception):
-        tracker().post('https://example.org', 'x')
+        analytics.post('https://example.org', 'x')
         logging.Logger.exception.assert_called_once_with(
             'Failed to post to Google Analytics')
 

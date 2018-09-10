@@ -53,14 +53,14 @@ class GATracker(threading.Thread):
         pv_data = [('t', 'pageview'), ('dh', self.host), ('dp', self.fullpath),
                    ('dt', self.title), ('cid', self.api_key)]
         body = self.payload_string(pv_data)
-        self.post(single_url, body)
+        post(single_url, body)
         log.debug('post url: %s' % single_url)
         log.debug('post body: %s' % body)
 
     def track_events(self):
         batch = "\n".join([self.payload_string(self.event(d))
                            for d in self.results['docs']])
-        self.post(batch_url, batch)
+        post(batch_url, batch)
         log.debug('post url: %s' % batch_url)
         log.debug('post body: %s' % batch)
 
@@ -82,13 +82,6 @@ class GATracker(threading.Thread):
                 ('el', '%s : %s' % (doc.get('id', ''), title)),
                 ('dh', self.host), ('dp', self.fullpath)]
 
-    def post(self, url, body):
-        try:
-            resp = requests.post(url, data=body)
-            resp.raise_for_status()
-        except Exception:
-            log.exception('Failed to post to Google Analytics')
-
     def payload_string(self, tuple_list):
         tuple_list.append(('v', '1'))
         tuple_list.append(('tid', self.tid))
@@ -108,3 +101,11 @@ def track(request, results, api_key, title):
         tid = os.getenv('GA_TID')
         if tid:
             GATracker(tid, request, results, api_key, title).start()
+
+
+def post(url, body):
+    try:
+        resp = requests.post(url, data=body)
+        resp.raise_for_status()
+    except Exception:
+        log.exception('Failed to post to Google Analytics')
