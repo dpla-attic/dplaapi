@@ -380,6 +380,7 @@ async def test_multiple_items_handles_query_parameters(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
 async def test_multiple_items_reraises_Forbidden(monkeypatch, mocker):
     """It reraises a Forbidden that gets thrown in items()"""
 
@@ -511,6 +512,7 @@ async def test_specific_item_BadRequest_for_ValidationError(monkeypatch,
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
 async def test_specific_items_reraises_Forbidden(monkeypatch, mocker):
     """It reraises a Forbidden that gets thrown in items()"""
 
