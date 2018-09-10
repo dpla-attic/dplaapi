@@ -295,6 +295,7 @@ def test_items_Exception_for_elasticsearch_errs(monkeypatch):
 # multiple_items() tests ...
 
 
+@pytest.mark.usefixtures('disable_auth')
 def test_multiple_items_calls_items_correctly(monkeypatch):
     """/v2/items calls items() with dictionary"""
     def mock_items(arg):
