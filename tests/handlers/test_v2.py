@@ -1050,3 +1050,10 @@ def test_compact_handles_missing_fields():
     }
     result = v2_handlers.compact(before.copy(), params)
     assert result == after
+
+
+def test_items_key():
+    params = {'api_key': 'a1b2c3', 'ids': ['e5', 'd4']}
+    result = v2_handlers.items_key(params)
+    # Note that 'ids' is sorted
+    assert result == (('api_key', 'a1b2c3'), ('ids', 'd4,e5'), 'v2_items')
