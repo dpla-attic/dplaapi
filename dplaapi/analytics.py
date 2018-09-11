@@ -65,7 +65,7 @@ class GATracker(threading.Thread):
         log.debug('post body: %s' % batch)
 
     def event(self, doc):
-        """Return a hash for one event (item "document" seen in the response)
+        """Return a list for one event (item "document" seen in the response)
 
         Arguments:
 
