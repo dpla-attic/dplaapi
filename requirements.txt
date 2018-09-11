@@ -2,8 +2,8 @@
 
 aiofiles==0.4.0
 apistar==0.5.41
-boto3==1.8.6
-botocore==1.11.6
+boto3==1.8.9
+botocore==1.11.9
 cachetools==2.1.0
 certifi==2018.8.24
 chardet==3.0.4
@@ -24,7 +24,7 @@ requests==2.19.1
 s3transfer==0.1.13
 six==1.11.0
 urllib3==1.23
-uvicorn==0.3.2
+uvicorn==0.3.5
 uvloop==0.11.2
 websockets==6.0
 Werkzeug==0.14.1
