@@ -43,7 +43,8 @@ setup(name='dplaapi',
           'aiofiles~=0.3',
           'peewee~=3.6',
           'psycopg2-binary~=2.7',
-          'boto3~=1.8'
+          'boto3~=1.8',
+          'cachetools~=2.1.0'
       ],
       extras_require={
         'dev': [

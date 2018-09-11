@@ -8,6 +8,7 @@ import json
 import os
 import boto3
 import secrets
+from cachetools import cached, TTLCache
 from dplaapi.types import ItemsQueryType
 import dplaapi.search_query
 from dplaapi.exceptions import ServerError, ConflictError
@@ -19,8 +20,29 @@ from peewee import OperationalError, DoesNotExist
 
 log = logging.getLogger(__name__)
 ok_email_pat = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
+cache = TTLCache(maxsize=100, ttl=20)
 
 
+def items_key(params):
+    """Return a hashable object (a tuple) suitable for a cache key
+
+    A dict is not hashable, so we need something hashable for caching the
+    items() function.
+    """
+
+    def hashable(thing):
+        if isinstance(thing, list):
+            return ','.join(thing)
+        else:
+            return thing
+
+    # A tuple of dict items() plus a token to prevent collisions with
+    # keys from other functions that might use the same cache
+    items = [(k, hashable(v)) for (k, v) in params.items()]
+    return tuple(sorted(items)) + ('v2_items',)
+
+
+@cached(cache, key=items_key)
 def items(params):
     """Get "item" records
 
@@ -251,10 +273,14 @@ def account_from_params(params):
 
 async def multiple_items(params: http.QueryParams,
                          request: http.Request) -> http.JSONResponse:
+
     account = account_from_params(params)
+
     try:
         goodparams = ItemsQueryType({k: v for [k, v] in params})
+
         result = items(goodparams)
+        log.debug('cache size: %d' % cache.currsize)
         rv = {
             'count': result['hits']['total'],
             'start': (int(goodparams['page']) - 1)
@@ -283,7 +309,9 @@ async def multiple_items(params: http.QueryParams,
 async def specific_item(id_or_ids: str,
                         params: http.QueryParams,
                         request: http.Request) -> dict:
+
     account = account_from_params(params)
+
     try:
         for k in list(params):        # list of tuples
             if k[0] != 'callback' and k[0] != 'api_key':
@@ -295,7 +323,9 @@ async def specific_item(id_or_ids: str,
                 raise exceptions.BadRequest("Bad ID: %s" % the_id)
         goodparams.update({'ids': ids})
         goodparams['page_size'] = len(ids)
+
         result = items(goodparams)
+        log.debug('cache size: %d' % cache.currsize)
 
         if result['hits']['total'] == 0:
             raise exceptions.NotFound()
