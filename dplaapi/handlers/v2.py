@@ -32,7 +32,7 @@ def items_key(params):
 
     def hashable(thing):
         if isinstance(thing, list):
-            return ','.join(thing)
+            return ','.join(sorted(thing))
         else:
             return thing
 
