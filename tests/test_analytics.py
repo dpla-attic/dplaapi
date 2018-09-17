@@ -83,10 +83,12 @@ def test_GATracker_constructs_correct_event_data(monkeypatch, mocker):
     #  ('ea', 'Library of Y'),
     #  ('el', 'c3d4 : Document Two'),
     #  ('dh', 'example.org'), ('dp', '/?')]
-    body = "t=event&ec=View+API+Item+%3A+Partner+X&ea=Library+of+X&" \
-           "el=a1b2+%3A+Document+One&dh=example.org&dp=%2F%3F&v=1&tid=x\n" \
-           "t=event&ec=View+API+Item+%3A+Partner+X&ea=Library+of+Y&" \
-           "el=c3d4+%3A+Document+Two&dh=example.org&dp=%2F%3F&v=1&tid=x"
+    body = "t=event&cid=a1b2c3&ec=View+API+Item+%3A+Partner+X&" \
+           "ea=Library+of+X&el=a1b2+%3A+Document+One&dh=example.org&" \
+           "dp=%2F%3F&v=1&tid=x\n" \
+           "t=event&cid=a1b2c3&ec=View+API+Item+%3A+Partner+X&" \
+           "ea=Library+of+Y&el=c3d4+%3A+Document+Two&dh=example.org&" \
+           "dp=%2F%3F&v=1&tid=x"
     tracker().track_events()
     post_stub.assert_called_once_with(
         'http://www.google-analytics.com/batch', body)
