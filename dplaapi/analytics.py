@@ -76,7 +76,7 @@ class GATracker(threading.Thread):
         data_provider = comma_del_string(doc.get('dataProvider', []))
         sr = doc.get('sourceResource', {})
         title = comma_del_string(sr.get('title', []))
-        return [('t', 'event'),
+        return [('t', 'event'), ('cid', self.api_key),
                 ('ec', 'View API Item : %s' % provider_name),
                 ('ea', data_provider),
                 ('el', '%s : %s' % (doc.get('id', ''), title)),
