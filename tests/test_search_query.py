@@ -57,6 +57,7 @@ def test_query_string_clause_has_all_correct_fields_for_q_query():
         'sourceResource.language.name^1',
         'sourceResource.publisher^1',
         'sourceResource.relation^1',
+        'sourceResource.rights^1',
         'sourceResource.spatial.country^0.75',
         'sourceResource.spatial.county^1',
         'sourceResource.spatial.name^1',
@@ -71,7 +72,6 @@ def test_query_string_clause_has_all_correct_fields_for_q_query():
     ]
     got_fields = sq.query['query']['bool']['must'][0]['query_string']['fields']
     assert sorted(got_fields) == sorted(good_fields)
-
 
 
 def test_SearchQuery_has_source_clause_for_fields_constraint():
