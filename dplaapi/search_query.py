@@ -64,7 +64,7 @@ fields_to_query = {
     'sourceResource.language.name': '1',
     'sourceResource.publisher': '1',
     'sourceResource.relation': '1',
-    'sourceResource.rights': None,
+    'sourceResource.rights': '1',
     'sourceResource.spatial': None,
     'sourceResource.spatial.coordinates': None,
     'sourceResource.spatial.country': '0.75',
