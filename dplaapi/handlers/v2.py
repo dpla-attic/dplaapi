@@ -138,22 +138,72 @@ def term_facets(this_agg):
     return {'_type': 'terms', 'terms': terms}
 
 
+def flatten(the_list):
+    """Responsibly flatten a list of lists into a one-dimensional list
+
+    Do not explode string values into lists!
+    (Solutions on the web using itertools.chain() and [x for y in z for x in y]
+    don't work because they explode strings into arrays.
+    """
+    if the_list is None:
+        raise StopIteration
+    for el in the_list:
+        if isinstance(el, list):
+            for sub_el in flatten(el):
+                yield sub_el
+        else:
+            yield el
+
+
 def traverse_doc(path, doc):
     """Given a _source ES doc, parse a dotted-notation path value and return
     the part of the doc that it represents.
 
     Called by compact().  See tests/handlers/test_v2.py for examples.
+
+    Care must be taken to handle values that may be strings, objects, or lists.
+    The tests illustrate how this handles the variations that we have in our
+    data.
     """
     leftpart = path.partition('.')[0]
     rightpart = path.partition('.')[2]
+    results = None
     if rightpart == '':
-        return doc[leftpart]
-    else:
+        # End of the line, so to speak, so return that value that we were
+        # after.
         try:
-            return traverse_doc(rightpart, doc[leftpart])
+            if isinstance(doc, dict):
+                results = doc[leftpart]
+            elif isinstance(doc, list):
+                results = [traverse_doc(leftpart, el) for el in doc]
         except KeyError:
             # Some docs in a result may not have the given field
+            pass
+    else:
+        # We're still in-progress traversing the path ...
+        try:
+            if isinstance(doc, dict):
+                results = traverse_doc(rightpart, doc[leftpart])
+            elif isinstance(doc, list):
+                results = [traverse_doc(rightpart, el[leftpart]) for el in doc]
+        except KeyError:
+            # as above
+            pass
+    if isinstance(results, list):
+        # Sure, it's a list, but it could be a list of lists if we've
+        # encountered an object with a property that's list of objects, etc.,
+        # so we have to use flatten() ...
+        x = [el for el in flatten(results)]
+        if not x:
+            # empty list
             return None
+        elif len(x) == 1:
+            # for consistency, say that ['value'] is 'value'.
+            return x[0]
+        else:
+            return x
+    else:
+        return results
 
 
 def compact(doc, params):
