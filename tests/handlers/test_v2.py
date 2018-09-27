@@ -1057,3 +1057,80 @@ def test_items_key():
     result = v2_handlers.items_key(params)
     # Note that 'ids' is sorted
     assert result == (('api_key', 'a1b2c3'), ('ids', 'd4,e5'), 'v2_items')
+
+
+def test_traverse_doc_handles_strings():
+    path = 'sourceResource.language.name'
+    doc = {'sourceResource': {'language': {'name': 'English'}}}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result == 'English'
+
+
+def test_traverse_doc_handles_lists_1():
+    path = 'sourceResource.language.name'
+    doc = {'sourceResource': {'language': [{'name': 'English'}]}}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result == 'English'
+
+
+def test_traverse_doc_handles_lists_2():
+    path = 'sourceResource.language.name'
+    doc = {
+        'sourceResource': {
+            'language': [{'name': 'English'}, {'name': 'Spanish'}]
+        }
+    }
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result == ['English', 'Spanish']
+
+
+def test_traverse_doc_handles_nested_arrays_and_objects():
+    path = 'a.b.c.d'
+    doc = {'a': {'b': [{'c': [{'d': 'the value'}]}]}}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result == 'the value'
+
+
+def test_traverse_doc_handles_nonexistent_field_1():
+    path = 'a.b.c.d'
+    doc = {'a': {'b': [{'foo': 'x'}]}}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result is None
+
+
+def test_traverse_doc_handles_nonexistent_field_2():
+    path = 'a.b'
+    doc = {'a': 'x'}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result is None
+
+
+def test_traverse_doc_handles_empty_list():
+    path = 'a'
+    doc = {'a': []}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result is None
+
+
+def test_traverse_doc_handles_object():
+    path = 'a'
+    doc = {'a': {'b': 'c'}}
+    result = v2_handlers.traverse_doc(path, doc)
+    assert result == {'b': 'c'}
+
+
+def test_flatten():
+    li = ['a', 'b']
+    rv = [x for x in v2_handlers.flatten(li)]
+    assert rv == ['a', 'b']
+
+    li = ['a', ['b', 'c']]
+    rv = [x for x in v2_handlers.flatten(li)]
+    assert rv == ['a', 'b', 'c']
+
+    li = ['a', ['b', ['c', 'd']]]
+    rv = [x for x in v2_handlers.flatten(li)]
+    assert rv == ['a', 'b', 'c', 'd']
+
+    rv = [x for x in v2_handlers.flatten(None)]
+    assert rv == []
