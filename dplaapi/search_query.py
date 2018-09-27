@@ -128,7 +128,8 @@ field_or_subfield = {
 # We let the user query on some fields that are objects. We really mean
 # "field.*" ... or else Elasticsearch won't query its subfields.
 object_wildcards = {
-    'sourceResource.spatial': 'sourceResource.spatial.*'
+    'sourceResource.spatial': 'sourceResource.spatial.*',
+    'provider': 'provider.*'
 }
 
 
