@@ -3,7 +3,7 @@ import apistar
 
 
 sr = 'SourceResource (Cultural Heritage Object)'
-url_match_pat = r'^https?://[-a-zA-Z0-9:%_\+.~#?&/=]+$'
+url_match_pat = r'^"?https?://[-a-zA-Z0-9:%_\+.~#?&/=]+"?$'
 
 items_params = {
     'q': apistar.validators.String(
