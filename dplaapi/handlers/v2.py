@@ -327,7 +327,8 @@ async def multiple_items(params: http.QueryParams,
     account = account_from_params(params)
 
     try:
-        goodparams = ItemsQueryType({k: v for [k, v] in params})
+        goodparams = ItemsQueryType({k: v for [k, v] in params
+                                     if v != '*'})
 
         result = items(goodparams)
         log.debug('cache size: %d' % cache.currsize)
