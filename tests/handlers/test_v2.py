@@ -425,6 +425,26 @@ async def test_multiple_items_calls_track_w_correct_params(monkeypatch,
                                        'Item search results')
 
 
+@pytest.mark.asyncio
+async def test_multiple_items_stips_lone_star_vals(monkeypatch, mocker):
+
+    def mock_items(*argv):
+            return minimal_good_response
+
+    def mock_account(*argv):
+        return models.Account(key='a1b2c3', email='x@example.org')
+
+    params = QueryParams({'q': '*'})  # 'q' should be stripped out with just *
+
+    monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    mocker.spy(v2_handlers, 'items')
+    request_stub = mocker.stub(name='request_stub')
+    await v2_handlers.multiple_items(params, request_stub)
+    v2_handlers.items.assert_called_once_with(
+        {'page': 1, 'page_size': 10, 'sort_order': 'asc'})
+
+
 # end multiple_items tests.
 
 # specific_items tests ...
