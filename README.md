@@ -99,7 +99,3 @@ See [Development.md](./Development.md)
 ## License
 
 See [LICENSE](./LICENSE)
-
-## TODO / FIXME
-
-* Change the Travis CI "Build Status" link when we have a `stable` branch.
