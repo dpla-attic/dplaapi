@@ -5,7 +5,7 @@ dplaapi.mlt_query
 Elasticsearch "More Like This" query
 """
 
-from dplaapi.field_or_subfield import field_or_subfield
+from .base_query import BaseQuery
 
 
 query_skel = {
@@ -34,7 +34,7 @@ def like_clause_element(doc_id):
     return {'_index': 'dpla_alias', '_type': 'item', '_id': doc_id}
 
 
-class MLTQuery():
+class MLTQuery(BaseQuery):
     """Elasticsearch "More Like This" API query
 
     Representing the JSON request body of the _search POST request.
@@ -61,21 +61,3 @@ class MLTQuery():
 
         if 'sort_by' in params:
             self.add_sort_clause(params)
-
-    def add_sort_clause(self, params):
-        actual_field = field_or_subfield[params['sort_by']]
-        if actual_field == 'sourceResource.spatial.coordinates':
-            pin = params['sort_by_pin']
-            self.query['sort'] = [
-                {
-                    '_geo_distance': {
-                        'sourceResource.spatial.coordinates': pin,
-                        'order': 'asc',
-                        'unit': 'mi'
-                    }
-                }
-            ]
-        else:
-            self.query['sort'] = [
-                {actual_field: {'order': params['sort_order']}},
-                {'_score': {'order': 'desc'}}]

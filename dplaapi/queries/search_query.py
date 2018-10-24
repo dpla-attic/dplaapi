@@ -10,6 +10,7 @@ from datetime import datetime
 from apistar.exceptions import ValidationError
 from dplaapi.facets import facets
 from dplaapi.field_or_subfield import field_or_subfield
+from .base_query import BaseQuery
 
 
 query_skel_search = {
@@ -270,7 +271,7 @@ def facet_size(constraints):
     return size
 
 
-class SearchQuery():
+class SearchQuery(BaseQuery):
     """Elasticsearch Search API query
 
     Representing the JSON request body of the _search POST request.
@@ -359,21 +360,3 @@ class SearchQuery():
                 }
             }
         self.query['query']['bool']['must'].append(clause)
-
-    def add_sort_clause(self, constraints):
-        actual_field = field_or_subfield[constraints['sort_by']]
-        if actual_field == 'sourceResource.spatial.coordinates':
-            pin = constraints['sort_by_pin']
-            self.query['sort'] = [
-                {
-                    '_geo_distance': {
-                        'sourceResource.spatial.coordinates': pin,
-                        'order': 'asc',
-                        'unit': 'mi'
-                    }
-                }
-            ]
-        else:
-            self.query['sort'] = [
-                {actual_field: {'order': constraints['sort_order']}},
-                {'_score': {'order': 'desc'}}]
