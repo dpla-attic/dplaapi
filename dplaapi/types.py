@@ -437,12 +437,25 @@ items_params = {
             allow_null=True)
 }
 
+mlt_params = {
+    'fields': items_params['fields'],
+    'page': items_params['page'],
+    'page_size': items_params['page_size'],
+    'sort_by': items_params['sort_by'],
+    'sort_order': items_params['sort_order'],
+    'sort_by_pin': items_params['sort_by_pin'],
+    'callback': items_params['callback'],
+    'api_key': items_params['api_key']
+}
 
-class ItemsQueryType(dict):
+
+class BaseQueryType(dict):
+    params_specification = {}  # To be overridden
+
     def __init__(self, *args):
-        super(ItemsQueryType, self).__init__(*args)
+        super(BaseQueryType, self).__init__(*args)
         for k, v in self.items():
-            if k in items_params:
+            if k in self.params_specification:
                 try:
                     items_params[k].validate(v)
                     # This is not great, but I have to do this because all
@@ -487,3 +500,17 @@ class ItemsQueryType(dict):
             # the maximum page size was 500, this warrants alerting the user.
             raise apistar.exceptions.ValidationError(
                 'The maximum page number is 100.')
+
+
+class ItemsQueryType(BaseQueryType):
+    params_specification = items_params
+
+    def __init__(self, *args):
+        super(ItemsQueryType, self).__init__(*args)
+
+
+class MLTQueryType(BaseQueryType):
+    params_specification = mlt_params
+
+    def __init__(self, *args):
+        super(MLTQueryType, self).__init__(*args)

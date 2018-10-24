@@ -13,6 +13,8 @@ from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
 from dplaapi import search_query, types, models
 from dplaapi.handlers import v2 as v2_handlers
+from dplaapi.search_query import SearchQuery
+from dplaapi.mlt_query import MLTQuery
 from dplaapi.exceptions import ServerError, ConflictError
 import dplaapi.analytics
 from peewee import OperationalError, DoesNotExist
@@ -277,8 +279,8 @@ def test_account_from_params_ServerError_bad_db(monkeypatch, mocker):
 def test_items_makes_es_request(monkeypatch):
     """multiple_items() makes an HTTP request to Elasticsearch"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    params = {'q': 'abcd', 'from': 0, 'page': 1, 'page_size': 1}
-    v2_handlers.items(params)  # No error
+    sq = SearchQuery({'q': 'abcd', 'from': 0, 'page': 1, 'page_size': 1})
+    v2_handlers.items(sq)  # No error
 
 
 @pytest.mark.usefixtures('disable_auth')
@@ -287,21 +289,21 @@ def test_items_Exception_for_elasticsearch_errs(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
     # Simulate some unsuccessful status code from Elasticsearch, other than a
     # 400 Bad Request.  Say a 500 Server Error, or a 404.
-    params = {'q': 'goodquery', 'from': 0, 'page': 1, 'page_size': 1}
+    sq = SearchQuery({'q': 'goodquery', 'from': 0, 'page': 1, 'page_size': 1})
     with pytest.raises(Exception):
-        v2_handlers.items(params)
+        v2_handlers.items(sq)
 
 
 # multiple_items() tests ...
 
 
 @pytest.mark.usefixtures('disable_auth')
-def test_multiple_items_calls_items_correctly(monkeypatch):
-    """/v2/items calls items() with dictionary"""
+def test_multiple_items_calls_search_items_correctly(monkeypatch):
+    """/v2/items calls search_items() with dictionary"""
     def mock_items(arg):
         assert isinstance(arg, dict)
         return minimal_good_response
-    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
     client.get('/v2/items')
 
 
@@ -363,7 +365,7 @@ async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch,
     request_stub = mocker.stub()
     with pytest.raises(ServerError) as excinfo:
         await v2_handlers.multiple_items(params, request_stub)
-    assert 'Unexpected error'in str(excinfo)
+    assert 'Unexpected error' in str(excinfo)
 
 
 @pytest.mark.asyncio
@@ -383,12 +385,12 @@ async def test_multiple_items_handles_query_parameters(monkeypatch, mocker):
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_auth')
 async def test_multiple_items_reraises_Forbidden(monkeypatch, mocker):
-    """It reraises a Forbidden that gets thrown in items()"""
+    """It reraises a Forbidden that gets thrown in search_items()"""
 
     def mock_forbidden_items(*args):
         raise Forbidden()
 
-    monkeypatch.setattr(v2_handlers, 'items', mock_forbidden_items)
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_forbidden_items)
     params = QueryParams({'q': 'test'})
     request_stub = mocker.stub()
     with pytest.raises(Forbidden):
@@ -426,7 +428,7 @@ async def test_multiple_items_calls_track_w_correct_params(monkeypatch,
 
 
 @pytest.mark.asyncio
-async def test_multiple_items_stips_lone_star_vals(monkeypatch, mocker):
+async def test_multiple_items_strips_lone_star_vals(monkeypatch, mocker):
 
     def mock_items(*argv):
             return minimal_good_response
@@ -437,15 +439,133 @@ async def test_multiple_items_stips_lone_star_vals(monkeypatch, mocker):
     params = QueryParams({'q': '*'})  # 'q' should be stripped out with just *
 
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
-    monkeypatch.setattr(v2_handlers, 'items', mock_items)
-    mocker.spy(v2_handlers, 'items')
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
+    mocker.spy(v2_handlers, 'search_items')
     request_stub = mocker.stub(name='request_stub')
     await v2_handlers.multiple_items(params, request_stub)
-    v2_handlers.items.assert_called_once_with(
+    v2_handlers.search_items.assert_called_once_with(
         {'page': 1, 'page_size': 10, 'sort_order': 'asc'})
 
 
 # end multiple_items tests.
+
+
+# mlt tests ...
+
+@pytest.mark.usefixtures('disable_auth')
+def test_mlt_calls_mlt_items_correctly(monkeypatch):
+    """/v2/items/<item>/mlt calls mlt_items with dictionary"""
+    def mock_items(arg):
+        assert isinstance(arg, dict)
+        return minimal_good_response
+    monkeypatch.setattr(v2_handlers, 'mlt_items', mock_items)
+    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a/mlt')
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
+@pytest.mark.usefixtures('stub_tracking')
+async def test_mlt_formats_response_metadata(monkeypatch, mocker):
+    """mlt_items() assembles the correct response metadata"""
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    request_stub = mocker.stub()
+    params = QueryParams()
+    response_obj = await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a',
+                                         params, request_stub)
+    result = json.loads(response_obj.content)
+
+    # See minimal_good_response above
+    assert result['count'] == 1
+    assert result['start'] == 1
+    assert result['limit'] == 10
+    assert result['docs'] == \
+        [hit['_source'] for hit in minimal_good_response['hits']['hits']]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_mlt_BadRequest_for_bad_param_value(monkeypatch, mocker):
+    """Input is validated and bad values for fields with constraints result in
+    400 Bad Request responses"""
+    params = QueryParams({'page_size': 'x'})
+    request_stub = mocker.stub()
+    with pytest.raises(BadRequest):
+        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
+                              request_stub)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_mlt_ServerError_for_misc_app_exception(monkeypatch, mocker):
+    """A bug in our application that raises an Exception results in
+    a ServerError (HTTP 500) with a generic message"""
+    monkeypatch.setattr(MLTQuery, '__init__', mock_application_exception)
+    params = QueryParams({'page_size': '5'})
+    request_stub = mocker.stub()
+    with pytest.raises(ServerError) as excinfo:
+        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
+                              request_stub)
+    assert 'Unexpected error' in str(excinfo)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
+async def test_mlt_reraises_Forbidden(monkeypatch, mocker):
+    """It reraises a Forbidden that gets thrown in mlt_items()"""
+
+    def mock_forbidden_items(*args):
+        raise Forbidden()
+
+    monkeypatch.setattr(v2_handlers, 'mlt_items', mock_forbidden_items)
+    params = QueryParams({'page_size': '5'})
+    request_stub = mocker.stub()
+    with pytest.raises(Forbidden):
+        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
+                              request_stub)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
+async def test_mlt_raises_BadRequest_for_bad_id(monkeypatch, mocker):
+    """It raises a Bad Request error for a badly-formatted record ID"""
+    params = QueryParams({})
+    request_stub = mocker.stub()
+    with pytest.raises(BadRequest):
+        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a,x', params,
+                              request_stub)
+
+
+@pytest.mark.asyncio
+async def test_mlt_calls_track_w_correct_params(monkeypatch, mocker):
+    """It calls dplaapi.analytics.track() correctly"""
+
+    def mock_items(*argv):
+        return minimal_good_response
+
+    def mock_account(*argv):
+        return models.Account(key='a1b2c3', email='x@example.org')
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
+    track_stub = mocker.stub(name='track_stub')
+    monkeypatch.setattr(v2_handlers, 'track', track_stub)
+    request_stub = mocker.stub(name='request_stub')
+    params = QueryParams({})
+    ok_data = {
+        'count': 1,
+        'start': 1,
+        'limit': 10,
+        'docs': [{'sourceResource': {'title': 'x'}}]
+    }
+
+    await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
+                          request_stub)
+    track_stub.assert_called_once_with(request_stub, ok_data, 'a1b2c3',
+                                       'More-Like-This search results')
+
+
+# end mlt tests.
+
 
 # specific_items tests ...
 
@@ -453,9 +573,9 @@ async def test_multiple_items_stips_lone_star_vals(monkeypatch, mocker):
 @pytest.mark.usefixtures('disable_api_key_check')
 def test_specific_item_path(monkeypatch, mocker):
     """/v2/items/{id} calls items() with correct 'ids' parameter"""
-    mocker.patch('dplaapi.handlers.v2.items')
+    mocker.patch('dplaapi.handlers.v2.search_items')
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
-    v2_handlers.items.assert_called_once_with(
+    v2_handlers.search_items.assert_called_once_with(
         {'page': 1, 'page_size': 1, 'sort_order': 'asc',
          'ids': ['13283cd2bd45ef385aae962b144c7e6a']})
 
@@ -463,13 +583,15 @@ def test_specific_item_path(monkeypatch, mocker):
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_handles_multiple_ids(monkeypatch, mocker):
-    """It splits ids on commas and calls items() with a list of those IDs"""
+    """It splits ids on commas and calls search_items() with a list of those
+    IDs
+    """
     def mock_items(arg):
         assert len(arg['ids']) == 2
         return minimal_good_response
 
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
-    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
     request_stub = mocker.stub()
     await v2_handlers.specific_item(ids, QueryParams({}), request_stub)
 
@@ -575,7 +697,7 @@ async def test_specific_item_calls_track_w_correct_params(monkeypatch,
     def mock_account(*argv):
         return models.Account(key='a1b2c3', email='x@example.org')
 
-    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
     track_stub = mocker.stub(name='track_stub')
     monkeypatch.setattr(v2_handlers, 'track', track_stub)
