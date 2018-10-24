@@ -29,11 +29,6 @@ query_skel = {
 }
 
 
-def like_clause_element(doc_id):
-    """An element of a more_like_this "like" clause's array"""
-    return {'_index': 'dpla_alias', '_type': 'item', '_id': doc_id}
-
-
 class MLTQuery(BaseQuery):
     """Elasticsearch "More Like This" API query
 
@@ -50,7 +45,8 @@ class MLTQuery(BaseQuery):
         - params: The request's querystring parameters
         """
         self.query = query_skel.copy()
-        like_list = [like_clause_element(x) for x in params['ids']]
+        like_list = [{'_type': 'item', '_id': x}
+                     for x in params['ids']]
         self.query['query']['more_like_this']['like'] = like_list
 
         if 'fields' in params:
