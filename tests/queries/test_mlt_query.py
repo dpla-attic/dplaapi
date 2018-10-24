@@ -1,6 +1,6 @@
 """Test dplaapi.mlt_query"""
 
-from dplaapi.mlt_query import MLTQuery
+from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.types import MLTQueryType
 
 

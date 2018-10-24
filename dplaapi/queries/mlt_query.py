@@ -5,7 +5,7 @@ dplaapi.mlt_query
 Elasticsearch "More Like This" query
 """
 
-from .field_or_subfield import field_or_subfield
+from dplaapi.field_or_subfield import field_or_subfield
 
 
 query_skel = {

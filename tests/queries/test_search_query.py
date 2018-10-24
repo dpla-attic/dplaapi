@@ -4,7 +4,8 @@ import re
 import pytest
 from types import GeneratorType
 from apistar.exceptions import ValidationError
-from dplaapi import search_query, types
+from dplaapi import types
+from dplaapi.queries import search_query
 
 
 def test_SearchQuery_produces_match_all_for_no_query_terms():
@@ -305,7 +306,7 @@ def test_facets_for_handles_date_field():
 
 def test_facets_for_histogram_for_month_or_year(mocker):
     """A date histogram aggregation is produced for month or year modifier"""
-    mocker.patch('dplaapi.search_query.date_histogram_agg')
+    mocker.patch('dplaapi.queries.search_query.date_histogram_agg')
     field = 'sourceResource.date.begin'
     for interval in ['month', 'year']:
         facet = "%s.%s" % (field, interval)
@@ -321,7 +322,7 @@ def test_facets_for_histogram_for_month_or_year(mocker):
 
 def test_facets_for_histogram_for_decade_or_century(mocker):
     """A date range aggregation is produced for decade or century modifier"""
-    mocker.patch('dplaapi.search_query.date_range_agg')
+    mocker.patch('dplaapi.queries.search_query.date_range_agg')
     for interval in ['decade', 'century']:
         field = 'sourceResource.date.begin'
         facet = "%s.%s" % (field, interval)

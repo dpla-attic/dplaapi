@@ -10,10 +10,9 @@ import boto3
 import secrets
 from cachetools import cached, TTLCache
 from dplaapi.types import ItemsQueryType, MLTQueryType
-import dplaapi.search_query
 from dplaapi.exceptions import ServerError, ConflictError
-from dplaapi.search_query import SearchQuery
-from dplaapi.mlt_query import MLTQuery
+from dplaapi.queries.search_query import SearchQuery
+from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
 from dplaapi.analytics import track

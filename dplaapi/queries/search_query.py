@@ -8,8 +8,8 @@ Elasticsearch Search API query
 import re
 from datetime import datetime
 from apistar.exceptions import ValidationError
-from .facets import facets
-from .field_or_subfield import field_or_subfield
+from dplaapi.facets import facets
+from dplaapi.field_or_subfield import field_or_subfield
 
 
 query_skel_search = {

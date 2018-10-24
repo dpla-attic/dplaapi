@@ -11,10 +11,11 @@ from apistar import test
 from apistar.exceptions import Forbidden, NotFound, BadRequest, ValidationError
 from apistar.http import QueryParams, Response, JSONResponse
 from dplaapi import app
-from dplaapi import search_query, types, models
+from dplaapi import types, models
 from dplaapi.handlers import v2 as v2_handlers
-from dplaapi.search_query import SearchQuery
-from dplaapi.mlt_query import MLTQuery
+from dplaapi.queries import search_query
+from dplaapi.queries.search_query import SearchQuery
+from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.exceptions import ServerError, ConflictError
 import dplaapi.analytics
 from peewee import OperationalError, DoesNotExist
@@ -359,8 +360,7 @@ async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch,
                                                                  mocker):
     """A bug in our application that raises an Exception results in
     a ServerError (HTTP 500) with a generic message"""
-    monkeypatch.setattr(
-        search_query.SearchQuery, '__init__', mock_application_exception)
+    monkeypatch.setattr(SearchQuery, '__init__', mock_application_exception)
     params = QueryParams({'q': 'goodquery'})
     request_stub = mocker.stub()
     with pytest.raises(ServerError) as excinfo:
@@ -1127,7 +1127,7 @@ def test_search_query_Exception_means_client_500(monkeypatch):
     def problem_func(*args, **kwargs):
         raise KeyError()
 
-    monkeypatch.setattr(search_query.SearchQuery, '__init__', problem_func)
+    monkeypatch.setattr(SearchQuery, '__init__', problem_func)
     response = client.get('/v2/items')
     assert response.status_code == 500
     assert response.json() == 'Unexpected error'
