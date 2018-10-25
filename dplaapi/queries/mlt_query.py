@@ -18,8 +18,6 @@ query_skel = {
             'min_doc_freq': 5,
             'max_query_terms': 25,
             'min_word_length': 3
-            # TODO: add custom analyzer to the index _settings that removes
-            # stopwords, etc., and use that analyzer here.
         }
     },
     'sort': [
