@@ -11,8 +11,8 @@ def test_MLTQuery_produces_query_with_like_clause():
     params.update({'ids': ['id1', 'id2']})
     q = MLTQuery(params)
     assert q.query['query']['more_like_this']['like'] == [
-        {'_index': 'dpla_alias', '_type': 'item', '_id': 'id1'},
-        {'_index': 'dpla_alias', '_type': 'item', '_id': 'id2'}
+        {'_type': 'item', '_id': 'id1'},
+        {'_type': 'item', '_id': 'id2'}
     ]
 
 
