@@ -564,6 +564,25 @@ async def test_mlt_calls_track_w_correct_params(monkeypatch, mocker):
                                        'More-Like-This search results')
 
 
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
+async def test_mlt_rejects_invalid_params(monkeypatch, mocker):
+    """The MLT handler rejects parameters of the regular search that are
+    irrelevant to More-Like-This and gives a clear message about the
+    parameter being invalid.
+    """
+    search_param_keys = set(types.items_params.keys())
+    mlt_param_keys = set(types.mlt_params.keys())
+    bad_params = search_param_keys - mlt_param_keys
+    for param in bad_params:
+        params = QueryParams({param: 'x'})
+        request_stub = mocker.stub()
+        with pytest.raises(BadRequest) as excinfo:
+            await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
+                                  request_stub)
+        assert 'is not a valid parameter' in str(excinfo)
+
+
 # end mlt tests.
 
 
