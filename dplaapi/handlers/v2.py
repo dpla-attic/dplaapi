@@ -9,10 +9,10 @@ import os
 import boto3
 import secrets
 from cachetools import cached, TTLCache
-from dplaapi.types import ItemsQueryType
-import dplaapi.search_query
+from dplaapi.types import ItemsQueryType, MLTQueryType
 from dplaapi.exceptions import ServerError, ConflictError
-from dplaapi.search_query import SearchQuery
+from dplaapi.queries.search_query import SearchQuery
+from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
 from dplaapi.analytics import track
@@ -20,7 +20,8 @@ from peewee import OperationalError, DoesNotExist
 
 log = logging.getLogger(__name__)
 ok_email_pat = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
-cache = TTLCache(maxsize=100, ttl=20)
+search_cache = TTLCache(maxsize=100, ttl=20)
+mlt_cache = TTLCache(maxsize=50, ttl=20)
 
 
 def items_key(params):
@@ -42,17 +43,18 @@ def items_key(params):
     return tuple(sorted(items)) + ('v2_items',)
 
 
-@cached(cache, key=items_key)
-def items(params):
-    """Get "item" records
+def items(query):
+    """Return "item" records from a search query
+
+    The search query could either be a typical SearchQuery or a MLTQuery
+    ("More Like This" query)
 
     Arguments:
-    - params: Dict of querystring or path parameters
+    - query:  instance of SearchQuery or MLTQuery, which has a `query'
+              property.
     """
-    sq = SearchQuery(params)
-    log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
     try:
-        resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=sq.query)
+        resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=query.query)
         resp.raise_for_status()
     except requests.exceptions.HTTPError:
         if resp.status_code == 400:
@@ -65,6 +67,30 @@ def items(params):
             raise Exception('Backend search operation failed')
     result = resp.json()
     return result
+
+
+@cached(search_cache, key=items_key)
+def search_items(params):
+    """Get "item" records
+
+    Arguments:
+    - params: Dict of querystring or path parameters
+    """
+    sq = SearchQuery(params)
+    log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
+    return items(sq)
+
+
+@cached(mlt_cache, key=items_key)
+def mlt_items(params):
+    """Get more-like-this "item" records
+
+    Arguments:
+    - params: Dict of querystring or path parameters
+    """
+    mltq = MLTQuery(params)
+    log.debug("Elasticsearch QUERY (Python dict):\n%s" % mltq.query)
+    return items(mltq)
 
 
 def formatted_facets(es6_aggregations):
@@ -330,8 +356,8 @@ async def multiple_items(params: http.QueryParams,
         goodparams = ItemsQueryType({k: v for [k, v] in params
                                      if v != '*'})
 
-        result = items(goodparams)
-        log.debug('cache size: %d' % cache.currsize)
+        result = search_items(goodparams)
+        log.debug('cache size: %d' % search_cache.currsize)
         rv = {
             'count': result['hits']['total'],
             'start': (int(goodparams['page']) - 1)
@@ -375,8 +401,8 @@ async def specific_item(id_or_ids: str,
         goodparams.update({'ids': ids})
         goodparams['page_size'] = len(ids)
 
-        result = items(goodparams)
-        log.debug('cache size: %d' % cache.currsize)
+        result = search_items(goodparams)
+        log.debug('cache size: %d' % search_cache.currsize)
 
         if result['hits']['total'] == 0:
             raise exceptions.NotFound()
@@ -392,6 +418,48 @@ async def specific_item(id_or_ids: str,
         return response_object(rv, goodparams)
 
     except (exceptions.BadRequest, exceptions.Forbidden, exceptions.NotFound):
+        raise
+    except exceptions.ValidationError as e:
+        raise exceptions.BadRequest(e.detail)
+    except Exception as e:
+        log.exception('Unexpected error')
+        raise ServerError('Unexpected error')
+
+
+async def mlt(id_or_ids: str,
+              params: http.QueryParams,
+              request: http.Request) -> dict:
+    """'More Like This' items"""
+
+    account = account_from_params(params)
+
+    try:
+        goodparams = MLTQueryType({k: v for [k, v] in params})
+        ids = id_or_ids.split(',')
+        for the_id in ids:
+            if not re.match(r'[a-f0-9]{32}$', the_id):
+                raise exceptions.BadRequest("Bad ID: %s" % the_id)
+        goodparams.update({'ids': ids})
+
+        result = mlt_items(goodparams)
+        log.debug('cache size: %d' % mlt_cache.currsize)
+
+        rv = {
+            'count': result['hits']['total'],
+            'start': (int(goodparams['page']) - 1)
+                      * int(goodparams['page_size'])               # noqa: E131
+                      + 1,                                         # noqa: E131
+            'limit': int(goodparams['page_size']),
+            'docs': [compact(hit['_source'], goodparams)
+                     for hit in result['hits']['hits']]
+        }
+
+        if account and not account.staff:
+            track(request, rv, account.key, 'More-Like-This search results')
+
+        return response_object(rv, goodparams)
+
+    except (exceptions.BadRequest, exceptions.Forbidden):
         raise
     except exceptions.ValidationError as e:
         raise exceptions.BadRequest(e.detail)
