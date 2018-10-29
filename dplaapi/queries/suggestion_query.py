@@ -9,32 +9,11 @@ query_skel = {'suggest': {}}
 fields = ['sourceResource.title', 'sourceResource.description']
 
 
-def collate_clause(field):
-    return {
-        'query': {
-            'source': {
-                'match': {
-                    field: {
-                        'query': '{{suggestion}}',
-                        'operator': 'AND'
-                    }
-                }
-            }
-        },
-        'prune': True
-    }
-
-
 def field_clause(field):
     return {
-        'phrase': {
-            'field': "%s.suggestion" % field,
-            'confidence': 1.0,
-            'highlight': {
-                'pre_tag': '<em>',
-                'post_tag': '</em>'
-            },
-            'collate': collate_clause(field)
+
+        'term': {
+            'field': "%s.suggestion" % field
         }
     }
 

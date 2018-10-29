@@ -58,9 +58,8 @@ minimal_good_suggestion_response = {
                 'options': [
                     {
                         'text': 'xx y z',
-                        'highlighted': '<em>xx</em> y z',
                         'score': 0.000006686969,
-                        'collate_match': True
+                        'freq': 4
                     }
                 ]
             }
@@ -73,9 +72,8 @@ minimal_good_suggestion_response = {
                 'options': [
                     {
                         'text': 'x yy z',
-                        'highlighted': 'x <em>yy</em> z',
                         'score': 0.000006686969,
-                        'collate_match': False
+                        'freq': 4
                     }
                 ]
             }
@@ -948,13 +946,8 @@ async def test_suggestion_formats_result_correctly(monkeypatch, mocker):
 
     # See minimal_good_suggestion_response above
     assert result == {
-        'sourceResource.description': [
-            {
-                'text': 'xx y z',
-                'highlighted': '<em>xx</em> y z'
-            }
-        ],
-        'sourceResource.title': []
+        'sourceResource.description': ['xx y z'],
+        'sourceResource.title': ['x yy z']
     }
 
 

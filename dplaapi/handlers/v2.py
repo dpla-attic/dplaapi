@@ -504,12 +504,9 @@ async def suggestion(text: str,
 
         for field in result['suggest'].keys():
             suggestion_list = []
-            for option in result['suggest'][field][0]['options']:
-                if option['collate_match']:
-                    suggestion_list.append({
-                        'text': option['text'],
-                        'highlighted': option['highlighted']
-                    })
+            for ngram_result in result['suggest'][field]:
+                for option in ngram_result['options']:
+                    suggestion_list.append(option['text'])
             rv[field] = suggestion_list
 
         return response_object(rv, goodparams)
