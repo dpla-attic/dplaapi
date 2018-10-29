@@ -448,6 +448,11 @@ mlt_params = {
     'api_key': items_params['api_key']
 }
 
+suggestion_params = {
+    'api_key': items_params['api_key'],
+    'callback': items_params['callback']
+}
+
 
 class BaseQueryType(dict):
     params_specification = {}  # To be overridden
@@ -474,6 +479,13 @@ class BaseQueryType(dict):
             else:
                 raise apistar.exceptions.ValidationError(
                     "%s is not a valid parameter" % k)
+
+
+class SearchQueryType(BaseQueryType):
+
+    def __init__(self, *args):
+        super(SearchQueryType, self).__init__(*args)
+
         if 'page' not in self:
             self['page'] = 1
         if 'page_size' not in self:
@@ -502,15 +514,22 @@ class BaseQueryType(dict):
                 'The maximum page number is 100.')
 
 
-class ItemsQueryType(BaseQueryType):
+class ItemsQueryType(SearchQueryType):
     params_specification = items_params
 
     def __init__(self, *args):
         super(ItemsQueryType, self).__init__(*args)
 
 
-class MLTQueryType(BaseQueryType):
+class MLTQueryType(SearchQueryType):
     params_specification = mlt_params
 
     def __init__(self, *args):
         super(MLTQueryType, self).__init__(*args)
+
+
+class SuggestionQueryType(BaseQueryType):
+    params_specification = suggestion_params
+
+    def __init__(self, *args):
+        super(SuggestionQueryType, self).__init__(*args)

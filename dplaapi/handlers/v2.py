@@ -10,9 +10,11 @@ import secrets
 from starlette.exceptions import HTTPException
 from starlette.background import BackgroundTask
 from cachetools import cached, TTLCache
-from dplaapi.types import ItemsQueryType, MLTQueryType
+from dplaapi.types import ItemsQueryType, MLTQueryType, SuggestionQueryType
+from dplaapi.exceptions import ServerError, ConflictError
 from dplaapi.queries.search_query import SearchQuery
 from dplaapi.queries.mlt_query import MLTQuery
+from dplaapi.queries.suggestion_query import SuggestionQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
 from dplaapi.analytics import track
@@ -483,3 +485,35 @@ async def api_key(request):
         db.close()
 
     return JSONResponse('API key created and sent to %s' % email)
+
+
+async def suggestion(text: str,
+                     params: http.QueryParams,
+                     request: http.Request) -> dict:
+    """Suggestions for alternatives to the given text"""
+
+    try:
+        goodparams = SuggestionQueryType({k: v for [k, v] in params})
+        goodparams.update({'text': text})
+        q = SuggestionQuery(goodparams)
+        resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=q.query)
+        resp.raise_for_status()
+
+        result = resp.json()
+        rv = {}
+
+        for field in result['suggest'].keys():
+            suggestion_list = []
+            for option in result['suggest'][field][0]['options']:
+                if option['collate_match']:
+                    suggestion_list.append({
+                        'text': option['text'],
+                        'highlighted': option['highlighted']
+                    })
+            rv[field] = suggestion_list
+
+        return response_object(rv, goodparams)
+
+    except requests.exceptions.HTTPError:
+        log.exception('Error querying Elasticsearch')
+        raise HTTPException(503, 'Backend suggestion search operation failed')

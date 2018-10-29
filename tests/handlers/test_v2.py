@@ -19,6 +19,8 @@ from dplaapi import types, models
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.queries import search_query
 from dplaapi.queries.search_query import SearchQuery
+from dplaapi.queries.mlt_query import MLTQuery
+from dplaapi.queries.suggestion_query import SuggestionQuery
 import dplaapi.analytics
 from peewee import OperationalError, DoesNotExist
 
@@ -37,6 +39,46 @@ minimal_good_response = {
         'max_score': None,
         'hits': [
             {'_source': {'sourceResource': {'title': 'x'}}}
+        ]
+    }
+}
+
+
+minimal_good_suggestion_response = {
+    'took': 5,
+    'timed_out': False,
+    '_shards': {'total': 5, 'successful': 5, 'skipped': 0, 'failed': 0},
+    'hits': {'total': 0, 'max_score': 0, 'hits': []},
+    'suggest': {
+        'sourceResource.description': [
+            {
+                'text': 'x y z',
+                'offset': 0,
+                'length': 5,
+                'options': [
+                    {
+                        'text': 'xx y z',
+                        'highlighted': '<em>xx</em> y z',
+                        'score': 0.000006686969,
+                        'collate_match': True
+                    }
+                ]
+            }
+        ],
+        'sourceResource.title': [
+            {
+                'text': 'x y z',
+                'offset': 0,
+                'length': 5,
+                'options': [
+                    {
+                        'text': 'x yy z',
+                        'highlighted': 'x <em>yy</em> z',
+                        'score': 0.000006686969,
+                        'collate_match': False
+                    }
+                ]
+            }
         ]
     }
 }
@@ -99,6 +141,15 @@ class MockGoodResponse():
         return minimal_good_response
 
 
+class MockGoodSuggestionResponse():
+    """Mock a good `requests.Response`"""
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return minimal_good_suggestion_response
+
+
 class Mock400Response():
     """Mock a `requests.Response` for an HTTP 400"""
     status_code = 400
@@ -126,6 +177,11 @@ class Mock500Response():
 def mock_es_post_response_200(url, json):
     """Mock `requests.post()` for a successful request"""
     return MockGoodResponse()
+
+
+def mock_es_suggestion_response_200(url, json):
+    """Mock `requests.post()` for a successful suggestion request"""
+    return MockGoodSuggestionResponse()
 
 
 def mock_es_post_response_400(url, json):
@@ -864,6 +920,83 @@ async def test_api_key_creates_account(monkeypatch, mocker):
 
 
 # end api_key tests
+
+
+# begin suggestion tests ...
+
+@pytest.mark.asyncio
+async def test_suggestion_calls_SuggestionQuery_w_correct_params(monkeypatch,
+                                                                 mocker):
+    """suggestion() calls SuggestionQuery() w 'text' added to params"""
+    monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
+    mocker.spy(SuggestionQuery, '__init__')
+    request_stub = mocker.stub()
+    params = QueryParams({})
+    await v2_handlers.suggestion('x y z', params, request_stub)
+    SuggestionQuery.__init__.assert_called_once_with(
+        mocker.ANY, {'text': 'x y z'})
+
+
+@pytest.mark.asyncio
+async def test_suggestion_formats_result_correctly(monkeypatch, mocker):
+    """suggestion() formats Elasticsearch's response correctly for output"""
+    monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
+    request_stub = mocker.stub()
+    params = QueryParams({})
+    response_obj = await v2_handlers.suggestion('x y z', params, request_stub)
+    result = json.loads(response_obj.content)
+
+    # See minimal_good_suggestion_response above
+    assert result == {
+        'sourceResource.description': [
+            {
+                'text': 'xx y z',
+                'highlighted': '<em>xx</em> y z'
+            }
+        ],
+        'sourceResource.title': []
+    }
+
+
+@pytest.mark.asyncio
+async def test_suggestion_ServerError_for_Elasticsearch_error(monkeypatch,
+                                                              mocker):
+    """An Elasticsearch HTTP error results in a ServerError with a relevant
+    message"""
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
+    params = QueryParams({})
+    request_stub = mocker.stub()
+    with pytest.raises(ServerError) as excinfo:
+        await v2_handlers.suggestion('some text', params, request_stub)
+    assert 'Backend suggestion search operation failed' in str(excinfo)
+
+
+@pytest.mark.asyncio
+async def test_suggestion_ServerError_for_misc_app_exception(monkeypatch,
+                                                             mocker):
+    """An application bug results in a ServerError with a generic message"""
+    monkeypatch.setattr(SuggestionQuery, '__init__',
+                        mock_application_exception)
+    params = QueryParams({})
+    request_stub = mocker.stub()
+    with pytest.raises(ServerError) as excinfo:
+        await v2_handlers.suggestion('some text', params, request_stub)
+    assert 'Unexpected error' in str(excinfo)
+
+
+@pytest.mark.asyncio
+async def test_suggestion_raises_BadRequest_for_ValidationError(monkeypatch,
+                                                                mocker):
+    """suggestion() reraises a BadRequest exception if it encounters a
+    ValidationError from SuggestionQueryType"""
+    params = QueryParams({'x': 'invalid parameter'})
+    request_stub = mocker.stub()
+    with pytest.raises(BadRequest) as excinfo:
+        await v2_handlers.suggestion('some text', params, request_stub)
+    assert 'x is not a valid parameter' in str(excinfo)
+
+
+# end suggestion tests.
 
 
 def test_geo_facets():

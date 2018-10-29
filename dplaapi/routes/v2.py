@@ -15,4 +15,7 @@ routes = [
     Route('/api_key/{email}',
           methods=['POST', 'OPTIONS'],
           endpoint=handlers.api_key)
+    Route('/suggestion/{text}',
+          methods=['GET'],
+          endpoint=handlers.suggestion)
 ]
