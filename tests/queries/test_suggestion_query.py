@@ -7,17 +7,15 @@ from dplaapi.types import SuggestionQueryType
 
 
 def test_SuggestionQuery_produces_correct_json_structure():
-    params = SuggestionQueryType()
-    params.update({'text': 'x'})
+    params = SuggestionQueryType({'text': 'xx'})
     q = SuggestionQuery(params).query
     assert isinstance(q['suggest'], dict)
-    assert q['suggest']['text'] == 'x'
+    assert q['suggest']['text'] == 'xx'
     assert isinstance(q['suggest']['sourceResource.title'], dict)
 
 
 def test_SuggestionQuery_calls_field_clause_correctly(mocker):
-    params = SuggestionQueryType()
-    params.update({'text': 'x'})
+    params = SuggestionQueryType({'text': 'xx'})
     mocker.spy(suggestion_query, 'field_clause')
     SuggestionQuery(params)
     calls = [call('sourceResource.title'), call('sourceResource.description')]
