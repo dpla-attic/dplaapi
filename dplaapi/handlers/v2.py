@@ -487,14 +487,12 @@ async def api_key(request):
     return JSONResponse('API key created and sent to %s' % email)
 
 
-async def suggestion(text: str,
-                     params: http.QueryParams,
+async def suggestion(params: http.QueryParams,
                      request: http.Request) -> dict:
     """Suggestions for alternatives to the given text"""
 
     try:
         goodparams = SuggestionQueryType({k: v for [k, v] in params})
-        goodparams.update({'text': text})
         q = SuggestionQuery(goodparams)
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=q.query)
         resp.raise_for_status()

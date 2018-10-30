@@ -449,6 +449,13 @@ mlt_params = {
 }
 
 suggestion_params = {
+    'text': apistar.validators.String(
+        title='Text',
+        description='Text to receive suggestions for',
+        min_length=2,
+        max_length=200,
+        allow_null=False
+    ),
     'api_key': items_params['api_key'],
     'callback': items_params['callback']
 }
@@ -462,7 +469,7 @@ class BaseQueryType(dict):
         for k, v in self.items():
             if k in self.params_specification:
                 try:
-                    items_params[k].validate(v)
+                    self.params_specification[k].validate(v)
                     # This is not great, but I have to do this because all
                     # query string parameters come in as strings.  I think that
                     # the types system works better if you use path parameters,

@@ -929,8 +929,8 @@ async def test_suggestion_calls_SuggestionQuery_w_correct_params(monkeypatch,
     monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
     mocker.spy(SuggestionQuery, '__init__')
     request_stub = mocker.stub()
-    params = QueryParams({})
-    await v2_handlers.suggestion('x y z', params, request_stub)
+    params = QueryParams({'text': 'x y z'})
+    await v2_handlers.suggestion(params, request_stub)
     SuggestionQuery.__init__.assert_called_once_with(
         mocker.ANY, {'text': 'x y z'})
 
@@ -940,8 +940,8 @@ async def test_suggestion_formats_result_correctly(monkeypatch, mocker):
     """suggestion() formats Elasticsearch's response correctly for output"""
     monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
     request_stub = mocker.stub()
-    params = QueryParams({})
-    response_obj = await v2_handlers.suggestion('x y z', params, request_stub)
+    params = QueryParams({'text': 'x y z'})
+    response_obj = await v2_handlers.suggestion(params, request_stub)
     result = json.loads(response_obj.content)
 
     # See minimal_good_suggestion_response above
@@ -957,10 +957,10 @@ async def test_suggestion_ServerError_for_Elasticsearch_error(monkeypatch,
     """An Elasticsearch HTTP error results in a ServerError with a relevant
     message"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
-    params = QueryParams({})
+    params = QueryParams({'text': 'some text'})
     request_stub = mocker.stub()
     with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.suggestion('some text', params, request_stub)
+        await v2_handlers.suggestion(params, request_stub)
     assert 'Backend suggestion search operation failed' in str(excinfo)
 
 
@@ -970,10 +970,10 @@ async def test_suggestion_ServerError_for_misc_app_exception(monkeypatch,
     """An application bug results in a ServerError with a generic message"""
     monkeypatch.setattr(SuggestionQuery, '__init__',
                         mock_application_exception)
-    params = QueryParams({})
+    params = QueryParams({'text': 'some text'})
     request_stub = mocker.stub()
     with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.suggestion('some text', params, request_stub)
+        await v2_handlers.suggestion(params, request_stub)
     assert 'Unexpected error' in str(excinfo)
 
 
@@ -982,10 +982,10 @@ async def test_suggestion_raises_BadRequest_for_ValidationError(monkeypatch,
                                                                 mocker):
     """suggestion() reraises a BadRequest exception if it encounters a
     ValidationError from SuggestionQueryType"""
-    params = QueryParams({'x': 'invalid parameter'})
+    params = QueryParams({'text': 'some text', 'x': 'invalid parameter'})
     request_stub = mocker.stub()
     with pytest.raises(BadRequest) as excinfo:
-        await v2_handlers.suggestion('some text', params, request_stub)
+        await v2_handlers.suggestion(params, request_stub)
     assert 'x is not a valid parameter' in str(excinfo)
 
 
