@@ -925,7 +925,7 @@ async def test_api_key_creates_account(monkeypatch, mocker):
 @pytest.mark.asyncio
 async def test_suggestion_calls_SuggestionQuery_w_correct_params(monkeypatch,
                                                                  mocker):
-    """suggestion() calls SuggestionQuery() w 'text' added to params"""
+    """suggestion() calls SuggestionQuery() w correct params"""
     monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
     mocker.spy(SuggestionQuery, '__init__')
     request_stub = mocker.stub()
@@ -955,7 +955,8 @@ async def test_suggestion_formats_result_correctly(monkeypatch, mocker):
 async def test_suggestion_ServerError_for_Elasticsearch_error(monkeypatch,
                                                               mocker):
     """An Elasticsearch HTTP error results in a ServerError with a relevant
-    message"""
+    message
+    """
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
     params = QueryParams({'text': 'some text'})
     request_stub = mocker.stub()
@@ -981,7 +982,8 @@ async def test_suggestion_ServerError_for_misc_app_exception(monkeypatch,
 async def test_suggestion_raises_BadRequest_for_ValidationError(monkeypatch,
                                                                 mocker):
     """suggestion() reraises a BadRequest exception if it encounters a
-    ValidationError from SuggestionQueryType"""
+    ValidationError from SuggestionQueryType
+    """
     params = QueryParams({'text': 'some text', 'x': 'invalid parameter'})
     request_stub = mocker.stub()
     with pytest.raises(BadRequest) as excinfo:
