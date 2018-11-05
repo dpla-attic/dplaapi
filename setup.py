@@ -34,13 +34,10 @@ setup(name='dplaapi',
       packages=find_packages(),
       scripts=['bin/devapi'],
       install_requires=[
-          'apistar~=0.5.41',
+          'starlette~=0.7.0',
+          'apistar~=0.6.0',
           'uvicorn~=0.3.2',
           'gunicorn~=19.9.0',
-          # aiofiles is required by ASyncApp, even though we have no static
-          # files. It's probably there for the /docs endpoint, which we
-          # have disabled.
-          'aiofiles~=0.4.0',
           'peewee~=3.6.0',
           'psycopg2-binary~=2.7.5',
           'boto3~=1.8.6',

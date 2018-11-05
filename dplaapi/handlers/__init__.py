@@ -1,14 +1,11 @@
 
 import logging
-import apistar
+from starlette.responses import RedirectResponse
 
 
 log = logging.getLogger(__name__)
 
 
-async def redir_to_recent_version() -> dict:
+async def redir_to_recent_version(request):
     """Redirect to the most recent version of the API, /items endpoint"""
-    headers = {'Location': '/v2/items'}
-    data = headers
-    return apistar.http.JSONResponse(data, status_code=301,
-                                     headers=headers)
+    return RedirectResponse(status_code=301, url='/v2/items')
