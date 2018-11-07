@@ -196,6 +196,12 @@ def mock_es_post_response_err(url, json):
     return Mock500Response()
 
 
+# FIXME: need to test this, but not as a handlers.v2 test. Should be at
+# dplaapi/__init__.py
+def mock_application_exception(*args, **kwargs):
+    return {'impossible': 1/0}
+
+
 def mock_Account_get(*args, **kwargs):
     return models.Account(key='08e3918eeb8bf4469924f062072459a8',
                           email='x@example.org',
