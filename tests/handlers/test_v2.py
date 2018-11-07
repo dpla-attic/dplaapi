@@ -7,21 +7,25 @@ import json
 import os
 import boto3
 import secrets
-from apistar import test
-from apistar.exceptions import Forbidden, NotFound, BadRequest, ValidationError
-from apistar.http import QueryParams, Response, JSONResponse
+from starlette.testclient import TestClient
+from starlette.exceptions import HTTPException
+from starlette.responses import Response
+from starlette.requests import Request
+from starlette.background import BackgroundTask
+from apistar.exceptions import ValidationError
+from dplaapi.responses import JSONResponse
 from dplaapi import app
 from dplaapi import types, models
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.queries import search_query
 from dplaapi.queries.search_query import SearchQuery
-from dplaapi.queries.mlt_query import MLTQuery
-from dplaapi.exceptions import ServerError, ConflictError
 import dplaapi.analytics
 from peewee import OperationalError, DoesNotExist
 
 
-client = test.TestClient(app, hostname='localhost')
+client = TestClient(app,
+                    base_url='http://localhost',
+                    raise_server_exceptions=False)
 
 
 minimal_good_response = {
@@ -159,6 +163,22 @@ def mock_not_found_Account_get(*args, **kwargs):
     raise DoesNotExist()
 
 
+def get_request(path, querystring=None, path_params=None):
+    rv = {'type': 'http', 'method': 'GET', 'path': path, 'query_string': b''}
+    if querystring:
+        rv['query_string'] = querystring.encode('utf-8')
+    if path_params:
+        rv['path_params'] = path_params
+    return Request(rv)
+
+
+def post_request(path, path_params=None):
+    rv = {'type': 'http', 'method': 'POST', 'path': path}
+    if path_params:
+        rv['path_params'] = path_params
+    return Request(rv)
+
+
 @pytest.fixture(scope='function')
 def disable_auth():
     os.environ['DISABLE_AUTH'] = 'true'
@@ -237,8 +257,9 @@ def test_account_from_params_returns_for_disabled_acct(monkeypatch, mocker):
         'page': 1,
         'page_size': 1
     }
-    with pytest.raises(Forbidden):
+    with pytest.raises(HTTPException) as e:
         v2_handlers.account_from_params(params)
+        assert e.status_code == 403
 
 
 @pytest.mark.usefixtures('patch_db_connection')
@@ -252,22 +273,23 @@ def test_account_from_params_bad_api_key(monkeypatch, mocker):
         'page': 1,
         'page_size': 1
     }
-    with pytest.raises(Forbidden):
+    with pytest.raises(HTTPException) as e:
         v2_handlers.account_from_params(params)
+        assert e.status_code == 403
 
 
 @pytest.mark.usefixtures('patch_bad_db_connection')
 def test_account_from_params_ServerError_bad_db(monkeypatch, mocker):
-    """It returns Server Error if it can't connect to the database"""
-    # FIXME: Should return HTTP 503 when we have that exception class
+    """It returns Service Unavailable if it can't connect to the database"""
     params = {
         'api_key': '08e3918eeb8bf4469924f062072459a8',
         'from': 0,
         'page': 1,
         'page_size': 1
     }
-    with pytest.raises(ServerError):
+    with pytest.raises(HTTPException) as e:
         v2_handlers.account_from_params(params)
+        assert e.status_code == 503
 
 
 # end account_from_params() tests
@@ -313,11 +335,11 @@ def test_multiple_items_calls_search_items_correctly(monkeypatch):
 @pytest.mark.usefixtures('stub_tracking')
 async def test_multiple_items_formats_response_metadata(monkeypatch, mocker):
     """multiple_items() assembles the correct response metadata"""
+
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    request_stub = mocker.stub()
-    params = QueryParams({'q': 'abcd'})
-    response_obj = await v2_handlers.multiple_items(params, request_stub)
-    result = json.loads(response_obj.content)
+    request = get_request('/v2/items', 'q=abcd')
+    response_obj = await v2_handlers.multiple_items(request)
+    result = json.loads(response_obj.body)
 
     # See minimal_good_response above
     assert result['count'] == 1
@@ -325,47 +347,6 @@ async def test_multiple_items_formats_response_metadata(monkeypatch, mocker):
     assert result['limit'] == 10  # the default
     assert result['docs'] == \
         [hit['_source'] for hit in minimal_good_response['hits']['hits']]
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_api_key_check')
-async def test_multiple_items_BadRequest_for_bad_param_value(monkeypatch,
-                                                             mocker):
-    """Input is validated and bad values for fields with constraints result in
-    400 Bad Request responses"""
-    params = QueryParams({'rights': "Not the URL it's supposed to be"})
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.multiple_items(params, request_stub)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_auth')
-async def test_multiple_items_BadRequest_for_unparseable_term(monkeypatch,
-                                                              mocker):
-    """User input that is unparseable by Elasticsearch results in a 400"""
-    monkeypatch.setattr(requests, 'post', mock_es_post_response_400)
-    # Elasticsearch can not parse the following query term and responds with
-    # an HTTP 400 Bad Request.
-    params = QueryParams({'sourceResource.title': 'this AND AND that'})
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest) as excinfo:
-        await v2_handlers.multiple_items(params, request_stub)
-    assert 'Invalid query' in str(excinfo)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_api_key_check')
-async def test_multiple_items_ServerError_for_misc_app_exception(monkeypatch,
-                                                                 mocker):
-    """A bug in our application that raises an Exception results in
-    a ServerError (HTTP 500) with a generic message"""
-    monkeypatch.setattr(SearchQuery, '__init__', mock_application_exception)
-    params = QueryParams({'q': 'goodquery'})
-    request_stub = mocker.stub()
-    with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.multiple_items(params, request_stub)
-    assert 'Unexpected error' in str(excinfo)
 
 
 @pytest.mark.asyncio
@@ -377,43 +358,31 @@ async def test_multiple_items_handles_query_parameters(monkeypatch, mocker):
         return {}
     monkeypatch.setattr(search_query, 'SearchQuery', mock_searchquery)
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    request_stub = mocker.stub()
-    params = QueryParams({'q': 'test'})
-    await v2_handlers.multiple_items(params, request_stub)
+    request = get_request('/v2/items', 'q=test')
+    await v2_handlers.multiple_items(request)
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_auth')
-async def test_multiple_items_reraises_Forbidden(monkeypatch, mocker):
-    """It reraises a Forbidden that gets thrown in search_items()"""
+async def test_multiple_items_calls_BackgroundTask(monkeypatch,
+                                                   mocker):
+    """It instantiates BackgroundTask correctly"""
 
-    def mock_forbidden_items(*args):
-        raise Forbidden()
-
-    monkeypatch.setattr(v2_handlers, 'search_items', mock_forbidden_items)
-    params = QueryParams({'q': 'test'})
-    request_stub = mocker.stub()
-    with pytest.raises(Forbidden):
-        await v2_handlers.multiple_items(params, request_stub)
-
-
-@pytest.mark.asyncio
-async def test_multiple_items_calls_track_w_correct_params(monkeypatch,
-                                                           mocker):
-    """It calls dplaapi.analytics.track() correctly"""
-
-    def mock_items(*argv):
+    def mock_items(*args):
         return minimal_good_response
 
-    def mock_account(*argv):
-        return models.Account(key='a1b2c3', email='x@example.org')
+    def mock_account(*args):
+        return models.Account(id=1, key='a1b2c3', email='x@example.org')
+
+    def mock_background_task(*args, **kwargs):
+        # __init__() has to return None, so this is not a mocker.stub()
+        return None
 
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
-    track_stub = mocker.stub(name='track_stub')
-    monkeypatch.setattr(v2_handlers, 'track', track_stub)
-    request_stub = mocker.stub(name='request_stub')
-    params = QueryParams({'q': 'test'})
+    monkeypatch.setattr(BackgroundTask, '__init__', mock_background_task)
+    mocker.spy(BackgroundTask, '__init__')
+
+    request = get_request('/v2/items', 'q=test')
     ok_data = {
         'count': 1,
         'start': 1,
@@ -422,9 +391,10 @@ async def test_multiple_items_calls_track_w_correct_params(monkeypatch,
         'facets': []
     }
 
-    await v2_handlers.multiple_items(params, request_stub)
-    track_stub.assert_called_once_with(request_stub, ok_data, 'a1b2c3',
-                                       'Item search results')
+    await v2_handlers.multiple_items(request)
+    BackgroundTask.__init__.assert_called_once_with(
+        mocker.ANY, mocker.ANY, request=mocker.ANY, results=ok_data,
+        api_key='a1b2c3', title='Item search results')
 
 
 @pytest.mark.asyncio
@@ -436,13 +406,14 @@ async def test_multiple_items_strips_lone_star_vals(monkeypatch, mocker):
     def mock_account(*argv):
         return models.Account(key='a1b2c3', email='x@example.org')
 
-    params = QueryParams({'q': '*'})  # 'q' should be stripped out with just *
-
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
     monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
     mocker.spy(v2_handlers, 'search_items')
-    request_stub = mocker.stub(name='request_stub')
-    await v2_handlers.multiple_items(params, request_stub)
+
+    # 'q' should be stripped out because it is just '*'
+    request = get_request('/v2/items', 'q=*')
+
+    await v2_handlers.multiple_items(request)
     v2_handlers.search_items.assert_called_once_with(
         {'page': 1, 'page_size': 10, 'sort_order': 'asc'})
 
@@ -462,17 +433,13 @@ def test_mlt_calls_mlt_items_correctly(monkeypatch):
     client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a/mlt')
 
 
-@pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_auth')
 @pytest.mark.usefixtures('stub_tracking')
-async def test_mlt_formats_response_metadata(monkeypatch, mocker):
+def test_mlt_formats_response_metadata(monkeypatch, mocker):
     """mlt_items() assembles the correct response metadata"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
-    request_stub = mocker.stub()
-    params = QueryParams()
-    response_obj = await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a',
-                                         params, request_stub)
-    result = json.loads(response_obj.content)
+    response = client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a/mlt')
+    result = response.json()
 
     # See minimal_good_response above
     assert result['count'] == 1
@@ -482,57 +449,11 @@ async def test_mlt_formats_response_metadata(monkeypatch, mocker):
         [hit['_source'] for hit in minimal_good_response['hits']['hits']]
 
 
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_api_key_check')
-async def test_mlt_BadRequest_for_bad_param_value(monkeypatch, mocker):
-    """Input is validated and bad values for fields with constraints result in
-    400 Bad Request responses"""
-    params = QueryParams({'page_size': 'x'})
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
-                              request_stub)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_api_key_check')
-async def test_mlt_ServerError_for_misc_app_exception(monkeypatch, mocker):
-    """A bug in our application that raises an Exception results in
-    a ServerError (HTTP 500) with a generic message"""
-    monkeypatch.setattr(MLTQuery, '__init__', mock_application_exception)
-    params = QueryParams({'page_size': '5'})
-    request_stub = mocker.stub()
-    with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
-                              request_stub)
-    assert 'Unexpected error' in str(excinfo)
-
-
-@pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_auth')
-async def test_mlt_reraises_Forbidden(monkeypatch, mocker):
-    """It reraises a Forbidden that gets thrown in mlt_items()"""
-
-    def mock_forbidden_items(*args):
-        raise Forbidden()
-
-    monkeypatch.setattr(v2_handlers, 'mlt_items', mock_forbidden_items)
-    params = QueryParams({'page_size': '5'})
-    request_stub = mocker.stub()
-    with pytest.raises(Forbidden):
-        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
-                              request_stub)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_auth')
-async def test_mlt_raises_BadRequest_for_bad_id(monkeypatch, mocker):
+def test_mlt_returns_bad_request_err_for_bad_id(monkeypatch, mocker):
     """It raises a Bad Request error for a badly-formatted record ID"""
-    params = QueryParams({})
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a,x', params,
-                              request_stub)
+    response = client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a,x/mlt')
+    assert response.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -549,8 +470,11 @@ async def test_mlt_calls_track_w_correct_params(monkeypatch, mocker):
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
     track_stub = mocker.stub(name='track_stub')
     monkeypatch.setattr(v2_handlers, 'track', track_stub)
-    request_stub = mocker.stub(name='request_stub')
-    params = QueryParams({})
+
+    path_params = {'id_or_ids': '13283cd2bd45ef385aae962b144c7e6a'}
+    request = get_request('/v2/items/13283cd2bd45ef385aae962b144c7e6a/mlt',
+                          path_params=path_params)
+
     ok_data = {
         'count': 1,
         'start': 1,
@@ -558,15 +482,13 @@ async def test_mlt_calls_track_w_correct_params(monkeypatch, mocker):
         'docs': [{'sourceResource': {'title': 'x'}}]
     }
 
-    await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
-                          request_stub)
-    track_stub.assert_called_once_with(request_stub, ok_data, 'a1b2c3',
+    await v2_handlers.mlt(request)
+    track_stub.assert_called_once_with(request, ok_data, 'a1b2c3',
                                        'More-Like-This search results')
 
 
-@pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_auth')
-async def test_mlt_rejects_invalid_params(monkeypatch, mocker):
+def test_mlt_rejects_invalid_params(monkeypatch, mocker):
     """The MLT handler rejects parameters of the regular search that are
     irrelevant to More-Like-This and gives a clear message about the
     parameter being invalid.
@@ -575,13 +497,10 @@ async def test_mlt_rejects_invalid_params(monkeypatch, mocker):
     mlt_param_keys = set(types.mlt_params.keys())
     bad_params = search_param_keys - mlt_param_keys
     for param in bad_params:
-        params = QueryParams({param: 'x'})
-        request_stub = mocker.stub()
-        with pytest.raises(BadRequest) as excinfo:
-            await v2_handlers.mlt('13283cd2bd45ef385aae962b144c7e6a', params,
-                                  request_stub)
-        assert 'is not a valid parameter' in str(excinfo)
-
+        path = '/v2/items/13283cd2bd45ef385aae962b144c7e6a/mlt?%s=x' % param
+        response = client.get(path)
+        assert response.status_code == 400
+        assert 'is not a valid parameter' in response.json()
 
 # end mlt tests.
 
@@ -589,11 +508,22 @@ async def test_mlt_rejects_invalid_params(monkeypatch, mocker):
 # specific_items tests ...
 
 
+@pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
-def test_specific_item_path(monkeypatch, mocker):
-    """/v2/items/{id} calls items() with correct 'ids' parameter"""
-    mocker.patch('dplaapi.handlers.v2.search_items')
-    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
+async def test_specific_item_passes_ids(monkeypatch, mocker):
+    """specific_item() calls search_items() with correct 'ids' parameter"""
+
+    def mock_search_items(*args):
+        return minimal_good_response
+
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_search_items)
+    mocker.spy(v2_handlers, 'search_items')
+    path_params = {'id_or_ids': '13283cd2bd45ef385aae962b144c7e6a'}
+    request = get_request('/v2/items/13283cd2bd45ef385aae962b144c7e6a',
+                          path_params=path_params)
+
+    await v2_handlers.specific_item(request)
+
     v2_handlers.search_items.assert_called_once_with(
         {'page': 1, 'page_size': 1, 'sort_order': 'asc',
          'ids': ['13283cd2bd45ef385aae962b144c7e6a']})
@@ -605,31 +535,37 @@ async def test_specific_item_handles_multiple_ids(monkeypatch, mocker):
     """It splits ids on commas and calls search_items() with a list of those
     IDs
     """
-    def mock_items(arg):
+    def mock_search_items(arg):
         assert len(arg['ids']) == 2
         return minimal_good_response
 
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
-    monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
-    request_stub = mocker.stub()
-    await v2_handlers.specific_item(ids, QueryParams({}), request_stub)
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_search_items)
+    path_params = {'id_or_ids': ids}
+    request = get_request("/v2/items/%s" % ids, path_params=path_params)
+
+    await v2_handlers.specific_item(request)
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_rejects_bad_ids_1(mocker):
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.specific_item('x', QueryParams({}), request_stub)
+    path_params = {'id_or_ids': 'x'}
+    request = get_request('/v2/items/x', path_params=path_params)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_item(request)
+        assert e.status_code == 400
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_rejects_bad_ids_2(mocker):
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867'
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.specific_item(ids, QueryParams({}), request_stub)
+    path_params = {'id_or_ids': ids}
+    request = get_request("/v2/items/%s" % ids, path_params=path_params)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_item(request)
+        assert e.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -641,96 +577,82 @@ async def test_specific_item_accepts_callback_querystring_param(monkeypatch,
         return minimal_good_response
 
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
-    request_stub = mocker.stub()
-    await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
-                                    QueryParams({'callback': 'f'}),
-                                    request_stub)
+    ids = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'id_or_ids': ids}
+    query_string = 'callback=f'
+    request = get_request("/v2/items/%s" % ids,
+                          path_params=path_params,
+                          querystring=query_string)
+    await v2_handlers.specific_item(request)
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_rejects_bad_querystring_param(mocker):
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
-                                        QueryParams({'page_size': 1}),
-                                        request_stub)
 
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_api_key_check')
-async def test_specific_item_BadRequest_for_ValidationError(monkeypatch,
-                                                            mocker):
-
-    def mock_items(arg):
-        raise ValidationError('No!')
-
-    monkeypatch.setattr(v2_handlers, 'items', mock_items)
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest):
-        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
-                                        {},
-                                        request_stub)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures('disable_auth')
-async def test_specific_items_reraises_Forbidden(monkeypatch, mocker):
-    """It reraises a Forbidden that gets thrown in items()"""
-
-    def mock_forbidden_items(*args):
-        raise Forbidden()
-
-    monkeypatch.setattr(v2_handlers, 'items', mock_forbidden_items)
-    request_stub = mocker.stub()
-    with pytest.raises(Forbidden):
-        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
-                                        {},
-                                        request_stub)
+    ids = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'id_or_ids': ids}
+    query_string = 'page_size=1'
+    request = get_request("/v2/items/%s" % ids,
+                          path_params=path_params,
+                          querystring=query_string)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_item(request)
+        assert e.status_code == 400
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_NotFound_for_zero_hits(monkeypatch, mocker):
-    """It raises a NotFound if there are no documents"""
+    """It raises a Not Found if there are no documents"""
 
     def mock_zero_items(*args):
         return {'hits': {'total': 0}}
 
     monkeypatch.setattr(v2_handlers, 'items', mock_zero_items)
-    request_stub = mocker.stub()
-    with pytest.raises(NotFound):
-        await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
-                                        {},
-                                        request_stub)
+
+    ids = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'id_or_ids': ids}
+    request = get_request("/v2/items/%s" % ids, path_params=path_params)
+
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_item(request)
+        assert e.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_specific_item_calls_track_w_correct_params(monkeypatch,
-                                                          mocker):
-    """It calls dplaapi.analytics.track() correctly"""
+async def test_specific_item_calls_BackgroundTask(monkeypatch,
+                                                  mocker):
+    """It instantiates BackgroundTask correctly"""
 
     def mock_items(*argv):
         return minimal_good_response
 
     def mock_account(*argv):
-        return models.Account(key='a1b2c3', email='x@example.org')
+        return models.Account(id=1, key='a1b2c3', email='x@example.org')
+
+    def mock_background_task(*args, **kwargs):
+        # __init__() has to return None, so this is not a mocker.stub()
+        return None
 
     monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
-    track_stub = mocker.stub(name='track_stub')
-    monkeypatch.setattr(v2_handlers, 'track', track_stub)
-    request_stub = mocker.stub(name='request_stub')
+    monkeypatch.setattr(BackgroundTask, '__init__', mock_background_task)
+    mocker.spy(BackgroundTask, '__init__')
+
     ok_data = {
         'count': 1,
         'docs': [{'sourceResource': {'title': 'x'}}]
     }
 
-    await v2_handlers.specific_item('13283cd2bd45ef385aae962b144c7e6a',
-                                    {},
-                                    request_stub)
-    track_stub.assert_called_once_with(request_stub, ok_data, 'a1b2c3',
-                                       'Fetch items')
+    ids = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'id_or_ids': ids}
+    request = get_request("/v2/items/%s" % ids, path_params=path_params)
+
+    await v2_handlers.specific_item(request)
+    BackgroundTask.__init__.assert_called_once_with(
+        mocker.ANY, mocker.ANY, request=mocker.ANY, results=ok_data,
+        api_key='a1b2c3', title='Fetch items')
 
 
 # end specific_items tests.
@@ -765,10 +687,11 @@ def test_send_email_uses_correct_source_and_destination(monkeypatch, mocker):
 
 
 def test_send_email_raises_ServerError_for_no_EMAIL_FROM(monkeypatch, mocker):
-    """It raises ServerError when the EMAIL_FROM env. var. is undefined"""
+    """It raises Server Error when the EMAIL_FROM env. var. is undefined"""
     monkeypatch.delenv('EMAIL_FROM', raising=False)
-    with pytest.raises(ServerError):
+    with pytest.raises(HTTPException) as e:
         v2_handlers.send_email('x', 'testto@example.org')
+        assert e.status_code == 500
 
 
 def test_send_api_key_email_calls_send_email_w_correct_params(monkeypatch,
@@ -790,22 +713,24 @@ def test_send_api_key_email_calls_send_email_w_correct_params(monkeypatch,
     )
 
 
-def test_send_api_key_email_reraises_ServerError(monkeypatch):
-    def naughty_send_email(*args):
-        raise ServerError('No.')
-
-    monkeypatch.setattr(v2_handlers, 'send_email', naughty_send_email)
-    with pytest.raises(ServerError):
-        v2_handlers.send_api_key_email('x@example.org', 'a1b2c3')
-
-
 def test_send_api_key_email_raises_ServerError_for_Exception(monkeypatch):
     def buggy_send_email(*args):
         1/0
 
     monkeypatch.setattr(v2_handlers, 'send_email', buggy_send_email)
-    with pytest.raises(ServerError):
+    with pytest.raises(HTTPException) as e:
         v2_handlers.send_api_key_email('x@example.org', 'a1b2c3')
+        assert e.status_code == 500
+
+
+def test_send_api_key_email_reraises_HTTPException(monkeypatch):
+    def buggy_send_email(*args):
+        raise HTTPException(404)
+
+    monkeypatch.setattr(v2_handlers, 'send_email', buggy_send_email)
+    with pytest.raises(HTTPException) as e:
+        v2_handlers.send_api_key_email('x@example.org', 'a1b2c3')
+        assert e.status_code == 404
 
 
 def test_send_reminder_email_calls_send_email_w_correct_params(monkeypatch,
@@ -828,22 +753,24 @@ def test_send_reminder_email_calls_send_email_w_correct_params(monkeypatch,
     )
 
 
-def test_send_reminder_email_reraises_ServerError(monkeypatch):
-    def naughty_send_email(*args):
-        raise ServerError('No.')
-
-    monkeypatch.setattr(v2_handlers, 'send_email', naughty_send_email)
-    with pytest.raises(ServerError):
-        v2_handlers.send_reminder_email('x@example.org', 'a1b2c3')
-
-
-def test_send_reminder_email_raises_ServerError_for_Exception(monkeypatch):
+def test_send_reminder_email_raises_Server_Error_for_Exception(monkeypatch):
     def buggy_send_email(*args):
         1/0
 
     monkeypatch.setattr(v2_handlers, 'send_email', buggy_send_email)
-    with pytest.raises(ServerError):
+    with pytest.raises(HTTPException) as e:
         v2_handlers.send_reminder_email('x@example.org', 'a1b2c3')
+        assert e.status_code == 500
+
+
+def test_send_reminder_email_reraises_HTTPException(monkeypatch):
+    def buggy_send_email(*args):
+        raise HTTPException(404)
+
+    monkeypatch.setattr(v2_handlers, 'send_email', buggy_send_email)
+    with pytest.raises(HTTPException) as e:
+        v2_handlers.send_reminder_email('x@example.org', 'a1b2c3')
+        assert e.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -852,8 +779,12 @@ async def test_api_key_flunks_bad_email():
     # But only the most obvious cases involving misplaced '@' or lack of '.'
     bad_addrs = ['f@@ey', '56b7165e4f8a54b4faf1e04c46a6145c']
     for addr in bad_addrs:
-        with pytest.raises(BadRequest):
-            await v2_handlers.api_key(addr)
+        path_params = {'email': addr}
+        request = post_request("/v2/api_key/%s" % addr,
+                               path_params=path_params)
+        with pytest.raises(HTTPException) as e:
+            await v2_handlers.api_key(request)
+            assert e.status_code == 400
 
 
 @pytest.mark.asyncio
@@ -868,19 +799,26 @@ async def test_api_key_bails_if_account_exists_for_email(monkeypatch, mocker):
     monkeypatch.setattr(models.Account, 'get', mock_get)
     stub = mocker.stub()
     monkeypatch.setattr(v2_handlers, 'send_reminder_email', stub)
-    with pytest.raises(ConflictError):
-        await v2_handlers.api_key('x@example.org')
+    request = post_request("/v2/api_key/x@example.org",
+                           path_params={'email': 'x@example.org'})
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.api_key(request)
+        assert e.status_code == 409
+
     stub.assert_called_once_with('x@example.org',
                                  '08e3918eeb8bf4469924f062072459a8')
 
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('patch_bad_db_connection')
-async def test_api_key_raises_ServerError_for_bad_db_connection(monkeypatch,
-                                                                mocker):
+async def test_api_key_raises_503_for_bad_db_connection(monkeypatch,
+                                                        mocker):
     """api_key() raises ServerError if it can't connect to the database"""
-    with pytest.raises(ServerError):
-        await v2_handlers.api_key('x@example.org')
+    with pytest.raises(HTTPException) as e:
+        request = post_request("/v2/api_key/x@example.org",
+                               path_params={'email': 'x@example.org'})
+        await v2_handlers.api_key(request)
+        assert e.status_code == 503
 
 
 # Fixture for the following two tests
@@ -917,21 +855,16 @@ async def test_api_key_creates_account(monkeypatch, mocker):
     """api_key() creates a new Account record & defines the right fields"""
 
     mocker.spy(models.Account, '__init__')
-    await v2_handlers.api_key('x@example.org')
+
+    request = post_request("/v2/api_key/x@example.org",
+                           path_params={'email': 'x@example.org'})
+    await v2_handlers.api_key(request)
 
     models.Account.__init__.assert_called_with(
         mocker.ANY,
         key='08e3918eeb8bf4469924f062072459a8',
         email='x@example.org',
         enabled=True)
-
-
-def test_api_key_options():
-    """OPTIONS /api_key works as designed"""
-    response = client.options('/v2/api_key')
-    assert response.status_code == 200
-    assert response.headers['Access-Control-Allow-Origin'] == '*'
-    assert response.headers['Access-Control-Allow-Methods'] == 'POST'
 
 
 # end api_key tests
@@ -1079,26 +1012,20 @@ def test_response_object_returns_correct_Response_for_JSONP_request():
     without a JSONP callback"""
     rv = v2_handlers.response_object({}, {'callback': 'f'})
     assert isinstance(rv, Response)
-    headers = {k: v for k, v in rv.headers}
-    assert headers['content-type'] == 'application/javascript'
-    assert rv.content == b'f({})'
+    assert rv.headers['content-type'] \
+        == 'application/javascript; charset=utf-8'
+    assert rv.body == b'f({})'
 
 
 # Exception-handling and HTTP status double-checks
 
 
 @pytest.mark.usefixtures('disable_auth')
-def test_elasticsearch_500_means_client_500(monkeypatch):
+def test_elasticsearch_500_means_client_503(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
     response = client.get('/v2/items')
-    assert response.status_code == 500
-    assert response.json() == 'Unexpected error'
-
-
-def test_elasticsearch_503_means_client_503(monkeypatch):
-    # TODO: need to revise dplaapi.handlers.v2.items() and add a
-    # ServiceUnavailable exception class
-    pass
+    assert response.status_code == 503
+    assert response.json() == 'Backend search operation failed'
 
 
 @pytest.mark.usefixtures('disable_auth')
@@ -1110,11 +1037,11 @@ def test_elasticsearch_400_means_client_400(monkeypatch):
 
 
 @pytest.mark.usefixtures('disable_auth')
-def test_elasticsearch_404_means_client_500(monkeypatch):
+def test_elasticsearch_404_means_client_503(monkeypatch):
     monkeypatch.setattr(requests, 'post', mock_es_post_response_404)
     response = client.get('/v2/items')
-    assert response.status_code == 500
-    assert response.json() == 'Unexpected error'
+    assert response.status_code == 503
+    assert response.json() == 'Backend search operation failed'
 
 
 @pytest.mark.usefixtures('disable_api_key_check')

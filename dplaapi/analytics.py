@@ -1,4 +1,3 @@
-import threading
 import os
 import requests
 import logging
@@ -22,24 +21,23 @@ batch_url = 'http://www.google-analytics.com/batch'
 log = logging.getLogger(__name__)
 
 
-class GATracker(threading.Thread):
+class GATracker():
     def __init__(self, tid, request, results, api_key, title):
         """
         Arguments:
 
         tid:      Google Analytics tracking ID
-        request:  Api Star http.Request object
+        request:  Starlette Request object
         results:  dict of the JSON result that's returned to the client
         api_key:  The API key
         title:    Title of the particular API endpoint
         """
-        threading.Thread.__init__(self)
         self.tid = tid
         self.request = request
         self.results = results
         self.api_key = api_key
         self.title = title
-        u = urlparse(self.request.url)
+        u = urlparse(str(self.request.url))
         self.fullpath = '?'.join([u.path, u.query])
         self.host = u.netloc
 
@@ -97,10 +95,10 @@ def comma_del_string(list_or_string):
     return ', '.join(s)
 
 
-def track(request, results, api_key, title):
+async def track(request, results, api_key, title):
         tid = os.getenv('GA_TID')
         if tid:
-            GATracker(tid, request, results, api_key, title).start()
+            GATracker(tid, request, results, api_key, title).run()
 
 
 def post(url, body):

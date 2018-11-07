@@ -1,7 +1,7 @@
 import pytest
 import requests
 import logging
-from apistar.http import Request
+from starlette.requests import Request
 from dplaapi import analytics
 
 
@@ -11,28 +11,35 @@ def stub_requests_post(monkeypatch, mocker):
     monkeypatch.setattr(requests, 'post', stub)
 
 
-def tracker():
-    results = {
-        'docs': [
-            {
-                'id': 'a1b2',
-                'provider': {'name': 'Partner X'},
-                'dataProvider': 'Library of X',
-                'sourceResource': {'title': 'Document One'}
-            },
-            {
-                'id': 'c3d4',
-                'provider': {'name': 'Partner X'},
-                'dataProvider': 'Library of Y',
-                'sourceResource': {'title': 'Document Two'}
-            }
-        ]
-    }
+mock_search_results = {
+    'docs': [
+        {
+            'id': 'a1b2',
+            'provider': {'name': 'Partner X'},
+            'dataProvider': 'Library of X',
+            'sourceResource': {'title': 'Document One'}
+        },
+        {
+            'id': 'c3d4',
+            'provider': {'name': 'Partner X'},
+            'dataProvider': 'Library of Y',
+            'sourceResource': {'title': 'Document Two'}
+        }
+    ]
+}
 
+
+mock_request_params = {
+    'type': 'http',
+    'path': 'http://example.org/',
+    'query_string': ''
+}
+
+
+def tracker():
     return analytics.GATracker('x',
-                               Request(method='GET',
-                                       url='http://example.org/'),
-                               results,
+                               Request(mock_request_params),
+                               mock_search_results,
                                'a1b2c3',
                                'The Title')
 
@@ -111,14 +118,11 @@ def test_comma_del_string_with_list():
     assert analytics.comma_del_string(['x', 'y']) == 'x, y'
 
 
-def test_track(monkeypatch, mocker):
+@pytest.mark.asyncio
+async def test_track(monkeypatch, mocker):
     monkeypatch.setenv('GA_TID', 'the_tid')
     mocker.spy(analytics.GATracker, '__init__')
-    start_stub = mocker.stub(name='start')
-    monkeypatch.setattr(analytics.GATracker, 'start', start_stub)
-    req = Request(method='GET', url='https://example.org/')
-
-    analytics.track(req, {}, 'x', 'title')
+    req = Request(mock_request_params)
+    await analytics.track(req, mock_search_results, 'x', 'title')
     analytics.GATracker.__init__.assert_called_once_with(
-        mocker.ANY, 'the_tid', req, {}, 'x', 'title')
-    analytics.GATracker.start.assert_called_once()
+        mocker.ANY, 'the_tid', req, mock_search_results, 'x', 'title')

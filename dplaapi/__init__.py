@@ -9,7 +9,12 @@ __version__ = '1.0.6'
 
 import os
 import logging
-from apistar import ASyncApp
+from starlette.applications import Starlette
+from starlette.exceptions import HTTPException
+from starlette.middleware.cors import CORSMiddleware
+from starlette.routing import Router
+from apistar.exceptions import ValidationError
+from dplaapi.responses import JSONResponse
 from . import routes
 
 log_levels = {
@@ -20,14 +25,6 @@ log_levels = {
     'critical': logging.CRITICAL
 }
 
-# This logging configuration used to work with Uvicorn 0.1.1, when running
-# the `uvicorn' executable, but does not anymore with higher versions.
-# It _does_ work when you run in production mode, in a Docker container,
-# with `gunicorn' being passed `-k uvicorn.workers.UvicornWorker', which you
-# can see in `Dockerfile'.
-# Watch https://github.com/encode/uvicorn/issues/179, which may result in
-# a fix.
-#
 logging.basicConfig(level=log_levels[os.getenv('APP_LOG_LEVEL', 'debug')],
                     format='[%(asctime)-15s] [%(process)d] [%(levelname)s] '
                            '[%(module)s]: %(message)s',
@@ -40,9 +37,26 @@ if not ES_BASE:
                 'not work!')
 
 
-# FIXME:
-# For now, don't use event hooks because they prevent API Star from serving
-# a 404 Not Found error for a request that doesn't match one of our routes.
-# A 500 Server Error will be returned, instead.
-# app = ASyncApp(routes=routes.routes, event_hooks=event_hooks.event_hooks)
-app = ASyncApp(routes=routes.routes, docs_url=None, schema_url=None)
+def http_exception_handler(request, exc):
+    # We assume that an HTTPException, which has been raised by our code,
+    # has already been logged.
+    return JSONResponse(exc.detail, status_code=exc.status_code)
+
+
+def validation_exception_handler(request, exc):
+    return JSONResponse(exc.messages, status_code=400)
+
+
+def misc_exception_handler(request, exc):
+    log.exception(exc)
+    return JSONResponse('Unexpected error', status_code=500)
+
+
+app = Starlette(debug=False)
+app.mount('', Router(routes.routes))
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(ValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, misc_exception_handler)
+app.add_middleware(CORSMiddleware,
+                   allow_origins=['*'],
+                   allow_methods=['GET', 'POST'])

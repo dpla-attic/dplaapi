@@ -1,5 +1,4 @@
 
-from apistar import exceptions, http
 import logging
 import requests
 import dplaapi
@@ -8,14 +7,16 @@ import json
 import os
 import boto3
 import secrets
+from starlette.exceptions import HTTPException
+from starlette.background import BackgroundTask
 from cachetools import cached, TTLCache
 from dplaapi.types import ItemsQueryType, MLTQueryType
-from dplaapi.exceptions import ServerError, ConflictError
 from dplaapi.queries.search_query import SearchQuery
 from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
 from dplaapi.analytics import track
+from dplaapi.responses import JSONResponse, JavascriptResponse
 from peewee import OperationalError, DoesNotExist
 
 log = logging.getLogger(__name__)
@@ -61,10 +62,10 @@ def items(query):
             # Assume that a Bad Request is the user's fault and we're getting
             # this because the query doesn't parse due to a bad search term
             # parameter.  For example "this AND AND that".
-            raise exceptions.BadRequest('Invalid query')
+            raise HTTPException(400, 'Invalid query')
         else:
             log.exception('Error querying Elasticsearch')
-            raise Exception('Backend search operation failed')
+            raise HTTPException(503, 'Backend search operation failed')
     result = resp.json()
     return result
 
@@ -246,21 +247,12 @@ def compact(doc, params):
     return rv
 
 
-def response_headers(content_type):
-    return {
-        'Content-Type': content_type,
-        'Access-Control-Allow-Origin': '*'
-    }
-
-
-def response_object(data, params):
+def response_object(data, params, task=None):
     if 'callback' in params:
-        headers = response_headers('application/javascript')
         content = "%s(%s)" % (params['callback'], json.dumps(data))
-        return http.Response(content=content, headers=headers)
+        return JavascriptResponse(content, background=task)
     else:
-        headers = response_headers('application/json; charset=utf-8')
-        return http.JSONResponse(data, headers=headers)
+        return JSONResponse(data, background=task)
 
 
 def send_email(message, destination):
@@ -269,7 +261,7 @@ def send_email(message, destination):
     source = os.getenv('EMAIL_FROM')
     if not source:
         log.exception('EMAIL_FROM is undefined in environment')
-        raise ServerError('Can not send email')
+        raise HTTPException(500, 'Can not send email')
     destination = {'ToAddresses': [destination]}
     client = boto3.client('ses')
     client.send_email(
@@ -287,11 +279,11 @@ def send_api_key_email(email, api_key):
     }
     try:
         send_email(message, email)
-    except ServerError:
+    except HTTPException:
         raise
     except Exception:
         log.exception('Unexpected error')
-        raise ServerError('Could not send API key to %s' % email)
+        raise HTTPException(500, 'Could not send API key to %s' % email)
 
 
 def send_reminder_email(email, api_key):
@@ -306,13 +298,13 @@ def send_reminder_email(email, api_key):
     }
     try:
         send_email(message, email)
-    except ServerError:
+    except HTTPException:
         raise
     except Exception:
         log.exception('Unexpected error')
-        raise ServerError('Could not send API key reminder email '
-                          '(Tried to because there is already an api_key for '
-                          'that email)')
+        raise HTTPException(500, 'Could not send API key reminder email '
+                                 '(Tried to because there is already an '
+                                 'api_key for that email)')
 
 
 def account_from_params(params):
@@ -330,9 +322,8 @@ def account_from_params(params):
             # the database is unavailable.
             # ValueError indicates that the configured Peewee maximum
             # connections have been exceeded.
-            # TODO: should be HTTP 503
             log.exception('Failed to connect to database')
-            raise ServerError('Backend API key account lookup failed')
+            raise HTTPException(503, 'Backend API key account lookup failed')
         except DoesNotExist:
             # Do not assign account ...
             pass
@@ -340,155 +331,141 @@ def account_from_params(params):
             db.close()
 
         if not account or not account.enabled:
-            raise exceptions.Forbidden('Invalid or inactive API key')
+            raise HTTPException(403, 'Invalid or inactive API key')
 
         return account
 
     return None
 
 
-async def multiple_items(params: http.QueryParams,
-                         request: http.Request) -> http.JSONResponse:
+async def multiple_items(request):
 
-    account = account_from_params(params)
+    account = account_from_params(request.query_params)
+    goodparams = ItemsQueryType({k: v for (k, v)
+                                 in request.query_params.items()
+                                 if v != '*'})
 
-    try:
-        goodparams = ItemsQueryType({k: v for [k, v] in params
-                                     if v != '*'})
+    result = search_items(goodparams)
+    log.debug('cache size: %d' % search_cache.currsize)
+    rv = {
+        'count': result['hits']['total'],
+        'start': (int(goodparams['page']) - 1)
+                  * int(goodparams['page_size'])               # noqa: E131
+                  + 1,                                         # noqa: E131
+        'limit': int(goodparams['page_size']),
+        'docs': [compact(hit['_source'], goodparams)
+                 for hit in result['hits']['hits']],
+        'facets': formatted_facets(result.get('aggregations', {}))
+    }
 
-        result = search_items(goodparams)
-        log.debug('cache size: %d' % search_cache.currsize)
-        rv = {
-            'count': result['hits']['total'],
-            'start': (int(goodparams['page']) - 1)
-                      * int(goodparams['page_size'])               # noqa: E131
-                      + 1,                                         # noqa: E131
-            'limit': int(goodparams['page_size']),
-            'docs': [compact(hit['_source'], goodparams)
-                     for hit in result['hits']['hits']],
-            'facets': formatted_facets(result.get('aggregations', {}))
-        }
+    if account and not account.staff:
+        task = BackgroundTask(track,
+                              request=request,
+                              results=rv,
+                              api_key=account.key,
+                              title='Item search results')
+    else:
+        task = None
 
-        if account and not account.staff:
-            track(request, rv, account.key, 'Item search results')
-
-        return response_object(rv, goodparams)
-
-    except (exceptions.BadRequest, exceptions.Forbidden):
-        raise
-    except exceptions.ValidationError as e:
-        raise exceptions.BadRequest(e.detail)
-    except Exception as e:
-        log.exception('Unexpected error')
-        raise ServerError('Unexpected error')
+    return response_object(rv, goodparams, task)
 
 
-async def specific_item(id_or_ids: str,
-                        params: http.QueryParams,
-                        request: http.Request) -> dict:
+async def specific_item(request):
 
-    account = account_from_params(params)
+    for k in request.query_params.items():        # list of tuples
+        if k[0] != 'callback' and k[0] != 'api_key':
+            raise HTTPException(400, 'Unrecognized parameter %s' % k[0])
 
-    try:
-        for k in list(params):        # list of tuples
-            if k[0] != 'callback' and k[0] != 'api_key':
-                raise exceptions.BadRequest('Unrecognized parameter %s' % k[0])
-        goodparams = ItemsQueryType({k: v for [k, v] in params})
-        ids = id_or_ids.split(',')
-        for the_id in ids:
-            if not re.match(r'[a-f0-9]{32}$', the_id):
-                raise exceptions.BadRequest("Bad ID: %s" % the_id)
-        goodparams.update({'ids': ids})
-        goodparams['page_size'] = len(ids)
+    id_or_ids = request.path_params['id_or_ids']
+    account = account_from_params(request.query_params)
+    goodparams = ItemsQueryType({k: v for [k, v]
+                                 in request.query_params.items()})
+    ids = id_or_ids.split(',')
+    for the_id in ids:
+        if not re.match(r'[a-f0-9]{32}$', the_id):
+            raise HTTPException(400, "Bad ID: %s" % the_id)
+    goodparams.update({'ids': ids})
+    goodparams['page_size'] = len(ids)
 
-        result = search_items(goodparams)
-        log.debug('cache size: %d' % search_cache.currsize)
+    result = search_items(goodparams)
+    log.debug('cache size: %d' % search_cache.currsize)
 
-        if result['hits']['total'] == 0:
-            raise exceptions.NotFound()
+    if result['hits']['total'] == 0:
+        raise HTTPException(404)
 
-        rv = {
-            'count': result['hits']['total'],
-            'docs': [hit['_source'] for hit in result['hits']['hits']]
-        }
+    rv = {
+        'count': result['hits']['total'],
+        'docs': [hit['_source'] for hit in result['hits']['hits']]
+    }
 
-        if account and not account.staff:
-            track(request, rv, account.key, 'Fetch items')
+    if account and not account.staff:
+        task = BackgroundTask(track,
+                              request=request,
+                              results=rv,
+                              api_key=account.key,
+                              title='Fetch items')
+    else:
+        task = None
 
-        return response_object(rv, goodparams)
-
-    except (exceptions.BadRequest, exceptions.Forbidden, exceptions.NotFound):
-        raise
-    except exceptions.ValidationError as e:
-        raise exceptions.BadRequest(e.detail)
-    except Exception as e:
-        log.exception('Unexpected error')
-        raise ServerError('Unexpected error')
+    return response_object(rv, goodparams, task)
 
 
-async def mlt(id_or_ids: str,
-              params: http.QueryParams,
-              request: http.Request) -> dict:
+async def mlt(request):
     """'More Like This' items"""
 
-    account = account_from_params(params)
+    id_or_ids = request.path_params['id_or_ids']
+    account = account_from_params(request.query_params)
+    goodparams = MLTQueryType({k: v for [k, v]
+                               in request.query_params.items()})
+    ids = id_or_ids.split(',')
 
-    try:
-        goodparams = MLTQueryType({k: v for [k, v] in params})
-        ids = id_or_ids.split(',')
-        for the_id in ids:
-            if not re.match(r'[a-f0-9]{32}$', the_id):
-                raise exceptions.BadRequest("Bad ID: %s" % the_id)
-        goodparams.update({'ids': ids})
+    for the_id in ids:
+        if not re.match(r'[a-f0-9]{32}$', the_id):
+            raise HTTPException(400, "Bad ID: %s" % the_id)
+    goodparams.update({'ids': ids})
 
-        result = mlt_items(goodparams)
-        log.debug('cache size: %d' % mlt_cache.currsize)
+    result = mlt_items(goodparams)
+    log.debug('cache size: %d' % mlt_cache.currsize)
 
-        rv = {
-            'count': result['hits']['total'],
-            'start': (int(goodparams['page']) - 1)
-                      * int(goodparams['page_size'])               # noqa: E131
-                      + 1,                                         # noqa: E131
-            'limit': int(goodparams['page_size']),
-            'docs': [compact(hit['_source'], goodparams)
-                     for hit in result['hits']['hits']]
-        }
+    rv = {
+        'count': result['hits']['total'],
+        'start': (int(goodparams['page']) - 1)
+                  * int(goodparams['page_size'])               # noqa: E131
+                  + 1,                                         # noqa: E131
+        'limit': int(goodparams['page_size']),
+        'docs': [compact(hit['_source'], goodparams)
+                 for hit in result['hits']['hits']]
+    }
 
-        if account and not account.staff:
-            track(request, rv, account.key, 'More-Like-This search results')
+    if account and not account.staff:
+        track(request, rv, account.key, 'More-Like-This search results')
 
-        return response_object(rv, goodparams)
-
-    except (exceptions.BadRequest, exceptions.Forbidden):
-        raise
-    except exceptions.ValidationError as e:
-        raise exceptions.BadRequest(e.detail)
-    except Exception as e:
-        log.exception('Unexpected error')
-        raise ServerError('Unexpected error')
+    return response_object(rv, goodparams)
 
 
-async def api_key(email: str) -> dict:
+async def api_key(request):
     """Create a new API key"""
 
+    email = request.path_params['email']
+
     if not re.match(ok_email_pat, email):
-        raise exceptions.BadRequest('Bad email address')
+        raise HTTPException(400, 'Bad email address')
 
     try:
         db.connect()
     except (OperationalError, ValueError):
         db.close()  # Must do this to release it to the connection pool
         log.exception('Failed to connect to database')
-        raise ServerError('Can not create API key')
+        raise HTTPException(503, 'Can not create API key')
 
     try:
         old_acct = Account.get(
             Account.email == email, Account.enabled == True)  # noqa: E712
         send_reminder_email(email, old_acct.key)
         db.close()
-        raise ConflictError(
-            'There is already an API key for %s.  We have sent a reminder '
-            'message to that address.' % email)
+        raise HTTPException(409, 'There is already an API key for %s.  We have'
+                                 ' sent a reminder message to that address.'
+                                 % email)
     except DoesNotExist:
         # We want for it not to exist yet.
         # Keep the database connection open.
@@ -498,16 +475,11 @@ async def api_key(email: str) -> dict:
     try:
         with db.atomic():
             Account(key=new_key, email=email, enabled=True).save()
+            # This is not a BackgroundTask() because we don't want to claim
+            # success to the user unless we know that the email was sent
+            # without error.
             send_api_key_email(email, new_key)
     finally:
         db.close()
 
-    return {'message': 'API key created and sent to %s' % email}
-
-
-async def api_key_options() -> http.Response:
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST'
-    }
-    return http.Response(content='', headers=headers)
+    return JSONResponse('API key created and sent to %s' % email)

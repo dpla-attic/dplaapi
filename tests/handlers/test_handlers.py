@@ -1,9 +1,11 @@
 
-from apistar import test
+from starlette.testclient import TestClient
 from dplaapi import app
 
 
-client = test.TestClient(app, hostname='localhost')
+client = TestClient(app,
+                    base_url='http://localhost',
+                    raise_server_exceptions=False)
 
 
 def test_root_redirect():
