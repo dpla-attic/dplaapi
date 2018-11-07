@@ -14,8 +14,8 @@ routes = [
           endpoint=handlers.mlt),
     Route('/api_key/{email}',
           methods=['POST', 'OPTIONS'],
-          endpoint=handlers.api_key)
-    Route('/suggestion/{text}',
+          endpoint=handlers.api_key),
+    Route('/suggestion',
           methods=['GET'],
           endpoint=handlers.suggestion)
 ]

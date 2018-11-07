@@ -11,7 +11,6 @@ from starlette.exceptions import HTTPException
 from starlette.background import BackgroundTask
 from cachetools import cached, TTLCache
 from dplaapi.types import ItemsQueryType, MLTQueryType, SuggestionQueryType
-from dplaapi.exceptions import ServerError, ConflictError
 from dplaapi.queries.search_query import SearchQuery
 from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.queries.suggestion_query import SuggestionQuery
@@ -487,12 +486,12 @@ async def api_key(request):
     return JSONResponse('API key created and sent to %s' % email)
 
 
-async def suggestion(params: http.QueryParams,
-                     request: http.Request) -> dict:
+async def suggestion(request):
     """Suggestions for alternatives to the given text"""
 
     try:
-        goodparams = SuggestionQueryType({k: v for [k, v] in params})
+        goodparams = SuggestionQueryType({k: v for (k, v)
+                                          in request.query_params.items()})
         q = SuggestionQuery(goodparams)
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=q.query)
         resp.raise_for_status()

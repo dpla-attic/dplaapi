@@ -19,7 +19,6 @@ from dplaapi import types, models
 from dplaapi.handlers import v2 as v2_handlers
 from dplaapi.queries import search_query
 from dplaapi.queries.search_query import SearchQuery
-from dplaapi.queries.mlt_query import MLTQuery
 from dplaapi.queries.suggestion_query import SuggestionQuery
 import dplaapi.analytics
 from peewee import OperationalError, DoesNotExist
@@ -928,9 +927,8 @@ async def test_suggestion_calls_SuggestionQuery_w_correct_params(monkeypatch,
     """suggestion() calls SuggestionQuery() w correct params"""
     monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
     mocker.spy(SuggestionQuery, '__init__')
-    request_stub = mocker.stub()
-    params = QueryParams({'text': 'x y z'})
-    await v2_handlers.suggestion(params, request_stub)
+    request = get_request('/v2/suggestion', 'text=x+y+z')
+    await v2_handlers.suggestion(request)
     SuggestionQuery.__init__.assert_called_once_with(
         mocker.ANY, {'text': 'x y z'})
 
@@ -939,10 +937,9 @@ async def test_suggestion_calls_SuggestionQuery_w_correct_params(monkeypatch,
 async def test_suggestion_formats_result_correctly(monkeypatch, mocker):
     """suggestion() formats Elasticsearch's response correctly for output"""
     monkeypatch.setattr(requests, 'post', mock_es_suggestion_response_200)
-    request_stub = mocker.stub()
-    params = QueryParams({'text': 'x y z'})
-    response_obj = await v2_handlers.suggestion(params, request_stub)
-    result = json.loads(response_obj.content)
+    request = get_request('/v2/suggestion', 'text=x+y+z')
+    response_obj = await v2_handlers.suggestion(request)
+    result = json.loads(response_obj.body)
 
     # See minimal_good_suggestion_response above
     assert result == {
@@ -954,41 +951,13 @@ async def test_suggestion_formats_result_correctly(monkeypatch, mocker):
 @pytest.mark.asyncio
 async def test_suggestion_ServerError_for_Elasticsearch_error(monkeypatch,
                                                               mocker):
-    """An Elasticsearch HTTP error results in a ServerError with a relevant
-    message
-    """
+    """An Elasticsearch HTTP error results in a Service Unavailable"""
     monkeypatch.setattr(requests, 'post', mock_es_post_response_err)
-    params = QueryParams({'text': 'some text'})
-    request_stub = mocker.stub()
-    with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.suggestion(params, request_stub)
-    assert 'Backend suggestion search operation failed' in str(excinfo)
-
-
-@pytest.mark.asyncio
-async def test_suggestion_ServerError_for_misc_app_exception(monkeypatch,
-                                                             mocker):
-    """An application bug results in a ServerError with a generic message"""
-    monkeypatch.setattr(SuggestionQuery, '__init__',
-                        mock_application_exception)
-    params = QueryParams({'text': 'some text'})
-    request_stub = mocker.stub()
-    with pytest.raises(ServerError) as excinfo:
-        await v2_handlers.suggestion(params, request_stub)
-    assert 'Unexpected error' in str(excinfo)
-
-
-@pytest.mark.asyncio
-async def test_suggestion_raises_BadRequest_for_ValidationError(monkeypatch,
-                                                                mocker):
-    """suggestion() reraises a BadRequest exception if it encounters a
-    ValidationError from SuggestionQueryType
-    """
-    params = QueryParams({'text': 'some text', 'x': 'invalid parameter'})
-    request_stub = mocker.stub()
-    with pytest.raises(BadRequest) as excinfo:
-        await v2_handlers.suggestion(params, request_stub)
-    assert 'x is not a valid parameter' in str(excinfo)
+    request = get_request('/v2/suggestion', 'text=some+text')
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.suggestion(request)
+        assert e.status_code == 503
+    assert 'Backend suggestion search operation failed' in str(e)
 
 
 # end suggestion tests.
