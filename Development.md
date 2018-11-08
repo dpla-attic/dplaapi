@@ -78,7 +78,7 @@ Python versions.
 
 See https://digitalpubliclibraryofamerica.atlassian.net/wiki/spaces/TECH/pages/87037285/Branching+and+Release+Model
 
-We follow the OneFlow branching model described there, with `master`, `latest`,
+We follow the OneFlow branching model described there, with `master`, `stable`,
 and feature branches.
 
 ### Cutting a release:
@@ -91,9 +91,9 @@ number.
 ```
 $ # on the master branch ...
 $ git tag -s -m 'Release X.Y.N' X.Y.N
-$ git checkout latest
+$ git checkout stable
 $ git merge --ff-only X.Y.N
-$ git push master X.Y.N latest
+$ git push origin master X.Y.N stable
 ```
 
 ## Workflow
