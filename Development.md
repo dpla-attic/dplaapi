@@ -117,8 +117,8 @@ these so that they expose their ports on localhost:
 
 ```
 $ cd /path/to/dplaapi
-$ docker run -d -p 9200:9200  mbdpla/dplaapi_elasticsearch:latest
-$ docker run -d -p 5432:5432  mbdpla/dplaapi_postgresql:latest
+$ docker run -d -p 9200:9200  dplatech/dplaapi_elasticsearch:latest
+$ docker run -d -p 5432:5432  dplatech/dplaapi_postgresql:latest
 $ PYTHONPATH=. ES_BASE=http://localhost:9200/dpla_alias \
   gunicorn -k uvicorn.workers.UvicornWorker --log-level=debug \
   --reload dplaapi:app
