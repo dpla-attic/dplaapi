@@ -6,6 +6,11 @@ sr = 'SourceResource (Cultural Heritage Object)'
 url_match_pat = r'^"?https?://[-a-zA-Z0-9:%_\+.~#?&/=]+"?$'
 
 items_params = {
+    'op': apistar.validators.String(
+            title='Boolean operator',
+            description='Boolean operator',
+            allow_null=True,
+            enum=['AND', 'OR']),
     'q': apistar.validators.String(
             title='Search term',
             description='Search term',

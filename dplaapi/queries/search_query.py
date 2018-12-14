@@ -289,6 +289,11 @@ class SearchQuery(BaseQuery):
         """
         fields, constraints = fields_and_constraints(params)
 
+        if 'op' in params and params['op'] == 'OR':
+            self.bool_type = 'should'
+        else:
+            self.bool_type = 'must'
+
         if not fields.keys():
             self.query = query_skel_search.copy()
             self.query['query'] = {'match_all': {}}
@@ -299,7 +304,7 @@ class SearchQuery(BaseQuery):
 
         else:
             self.query = query_skel_search.copy()
-            self.query['query'] = {'bool': {'must': []}}
+            self.query['query'] = {'bool': {self.bool_type: []}}
             for field, term in fields.items():
                 if field.endswith('.before') or field.endswith('.after'):
                     self.add_range_clause(field, term)
@@ -339,7 +344,7 @@ class SearchQuery(BaseQuery):
             clause['query_string']['fields'] = \
                 single_field_fields_clause(field, boost, constraints)
 
-        self.query['query']['bool']['must'].append(clause)
+        self.query['query']['bool'][self.bool_type].append(clause)
 
     def add_range_clause(self, field_w_mod, term):
         match_obj = temporal_search_field_pat.match(field_w_mod)
@@ -359,4 +364,4 @@ class SearchQuery(BaseQuery):
                     key: {'gte': term}
                 }
             }
-        self.query['query']['bool']['must'].append(clause)
+        self.query['query']['bool'][self.bool_type].append(clause)
