@@ -16,6 +16,10 @@ facets = {
     'isPartOf.name': ('isPartOf.name.not_analyzed', 'terms'),
     'provider.@id': ('provider.@id', 'terms'),
     'provider.name': ('provider.name.not_analyzed', 'terms'),
+    'rights': ('rights', 'terms'),
+    'sourceResource.collection.title': ('sourceResource.collection.title'
+                                        '.not_analyzed',
+                                        'terms'),
     'sourceResource.contributor': ('sourceResource.contributor', 'terms'),
     'sourceResource.date.begin': ('sourceResource.date.begin',
                                   'date_histogram'),
