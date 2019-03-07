@@ -12,7 +12,6 @@ from dplaapi.facets import facets
 from dplaapi.field_or_subfield import field_or_subfield
 from .base_query import BaseQuery
 
-
 query_skel_search = {
     'sort': [
         {'_score': {'order': 'desc'}},
@@ -20,13 +19,11 @@ query_skel_search = {
     ]
 }
 
-
 query_skel_specific_ids = {
     'sort': {'id': {'order': 'asc'}},
     'from': 0,
     'size': 50
 }
-
 
 # Fields available to query in a 'query_string' clause.
 #
@@ -83,14 +80,12 @@ fields_to_query = {
     'sourceResource.type': '1'
 }
 
-
 # We let the user query on some fields that are objects. We really mean
 # "field.*" ... or else Elasticsearch won't query its subfields.
 object_wildcards = {
     'sourceResource.spatial': 'sourceResource.spatial.*',
     'provider': 'provider.*'
 }
-
 
 temporal_search_field_pat = re.compile(r'(?P<field>.*)?\.(?P<modifier>.*)$')
 
@@ -121,8 +116,8 @@ def single_field_fields_clause(field, boost, constraints):
 
 def is_field_related(param_name):
     return param_name in fields_to_query or param_name == 'q' \
-        or param_name == 'ids' or param_name.endswith('.before') \
-        or param_name.endswith('.after')
+           or param_name == 'ids' or param_name.endswith('.before') \
+           or param_name.endswith('.after') # or param_name == 'random'
 
 
 def fields_and_constraints(params):
@@ -227,7 +222,7 @@ def date_range_agg(actual_field, interval, size):
     y_last = y_first + span[interval] - 1
     first_and_last = {
         'decade': ((y_first - i, y_last - i)
-                   for i in range(0, 500, 10)),    # last 500 years
+                   for i in range(0, 500, 10)),  # last 500 years
         'century': ((y_first - i, y_last - i)
                     for i in range(0, 5000, 100))  # last 5000 years
     }
@@ -281,6 +276,7 @@ class SearchQuery(BaseQuery):
     Instance attributes:
     - query: The dict that will be serialized to JSON for the query.
     """
+
     def __init__(self, params: dict):
         """Initialize the SearchQuery
 
@@ -326,6 +322,15 @@ class SearchQuery(BaseQuery):
             size = facet_size(constraints)
             self.query['aggs'] = facets_clause(constraints['facets'], size)
 
+        if 'random' in constraints:
+            # Override all other query parameters and return one random record
+            self.query["query"] = {
+                "function_score": {
+                    "random_score": {}
+                }
+            }
+            self.query["size"] = 1
+
     def add_query_string_clause(self, field, term, constraints):
         clause = {
             'query_string': {
@@ -338,7 +343,8 @@ class SearchQuery(BaseQuery):
         if field == 'q':
             clause['query_string']['fields'] = \
                 q_fields_clause(fields_to_query)
-
+        elif field == 'random':
+            pass  # do nothing
         else:
             boost = fields_to_query[field]
             clause['query_string']['fields'] = \
