@@ -117,7 +117,7 @@ def single_field_fields_clause(field, boost, constraints):
 def is_field_related(param_name):
     return param_name in fields_to_query or param_name == 'q' \
            or param_name == 'ids' or param_name.endswith('.before') \
-           or param_name.endswith('.after') # or param_name == 'random'
+           or param_name.endswith('.after')
 
 
 def fields_and_constraints(params):
