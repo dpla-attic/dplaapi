@@ -95,9 +95,6 @@ def random(request):
 
     result = items(sq)
 
-    if result['hits']['total'] == 0:
-        raise HTTPException(404)
-
     rv = {
         'count': result['hits']['total'],
         'docs': [hit['_source'] for hit in result['hits']['hits']]
