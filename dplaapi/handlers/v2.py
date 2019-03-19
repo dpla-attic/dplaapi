@@ -89,7 +89,6 @@ def random(request):
                                  in request.query_params.items()})
 
     goodparams.update({'random': 'true'})
-    goodparams['page_size'] = 1
 
     sq = SearchQuery(goodparams)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
