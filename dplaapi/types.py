@@ -98,6 +98,12 @@ items_params = {
             description='API Key',
             pattern=r'^[a-f0-9]{32}$',
             allow_null=True),
+    'random': apistar.validators.String(
+            title='Random',
+            description='Random item',
+            enum=['true'],
+            allow_null=True
+    ),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',
@@ -450,7 +456,8 @@ mlt_params = {
     'sort_order': items_params['sort_order'],
     'sort_by_pin': items_params['sort_by_pin'],
     'callback': items_params['callback'],
-    'api_key': items_params['api_key']
+    'api_key': items_params['api_key'],
+    'random': items_params['random']
 }
 
 
