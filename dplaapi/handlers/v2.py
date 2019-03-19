@@ -105,7 +105,7 @@ def random(request):
                               request=request,
                               results=rv,
                               api_key=account.key,
-                              title='Fetch items')
+                              title='Fetch random item')
     else:
         task = None
 
