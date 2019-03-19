@@ -456,8 +456,7 @@ mlt_params = {
     'sort_order': items_params['sort_order'],
     'sort_by_pin': items_params['sort_by_pin'],
     'callback': items_params['callback'],
-    'api_key': items_params['api_key'],
-    'random': items_params['random']
+    'api_key': items_params['api_key']
 }
 
 
