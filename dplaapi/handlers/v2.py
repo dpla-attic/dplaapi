@@ -82,6 +82,40 @@ def search_items(params):
     return items(sq)
 
 
+def random(request):
+    account = account_from_params(request.query_params)
+
+    goodparams = ItemsQueryType({k: v for [k, v]
+                                 in request.query_params.items()})
+
+    goodparams.update({'random': 'true'})
+    goodparams['page_size'] = 1
+
+    sq = SearchQuery(goodparams)
+    log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
+
+    result = items(sq)
+
+    if result['hits']['total'] == 0:
+        raise HTTPException(404)
+
+    rv = {
+        'count': result['hits']['total'],
+        'docs': [hit['_source'] for hit in result['hits']['hits']]
+    }
+
+    if account and not account.staff:
+        task = BackgroundTask(track,
+                              request=request,
+                              results=rv,
+                              api_key=account.key,
+                              title='Fetch items')
+    else:
+        task = None
+
+    return response_object(rv, goodparams, task)
+
+
 @cached(mlt_cache, key=items_key)
 def mlt_items(params):
     """Get more-like-this "item" records
