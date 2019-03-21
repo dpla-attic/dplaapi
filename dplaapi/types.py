@@ -72,7 +72,7 @@ items_params = {
             title='Facets',
             description='Facets',
             min_length=2,
-            max_length=200,
+            max_length=300,
             pattern=r'^[a-zA-Z\.,]+',
             allow_null=True),
     'facet_size': apistar.validators.String(
