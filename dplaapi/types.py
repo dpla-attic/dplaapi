@@ -98,6 +98,12 @@ items_params = {
             description='API Key',
             pattern=r'^[a-f0-9]{32}$',
             allow_null=True),
+    'random': apistar.validators.String(
+            title='Random',
+            description='Random item',
+            enum=['true'],
+            allow_null=True
+    ),
     'id': apistar.validators.String(
             title='ID',
             description='DPLA Record ID',
