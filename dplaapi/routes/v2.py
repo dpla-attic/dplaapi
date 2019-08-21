@@ -17,5 +17,8 @@ routes = [
           endpoint=handlers.api_key),
     Route('/random',
           methods=['GET', 'OPTIONS'],
-          endpoint=handlers.random)
+          endpoint=handlers.random),
+    Route('/items/{id_or_ids}/lda',
+          methods=['GET', 'OPTIONS'],
+          endpoint=handlers.lda)
 ]

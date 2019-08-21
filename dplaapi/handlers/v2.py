@@ -474,6 +474,14 @@ async def mlt(request):
     return response_object(rv, goodparams)
 
 
+async def lda(request):
+    """Cosine similarity for LDA vector"""
+
+    item = await specific_item(request)
+
+    return item
+
+
 async def api_key(request):
     """Create a new API key"""
 
