@@ -477,8 +477,6 @@ lda_params = {
     'fields': items_params['fields'],
     'page': items_params['page'],
     'page_size': items_params['page_size'],
-    'sort_by': items_params['sort_by'],
-    'sort_order': items_params['sort_order'],
     'callback': items_params['callback'],
     'api_key': items_params['api_key']
 }
