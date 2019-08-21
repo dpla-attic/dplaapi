@@ -491,12 +491,40 @@ async def mlt(request):
 async def lda(request):
     """Cosine similarity for LDA vector"""
 
-    response = await specific_item(request)
+    # Get item by making an initial call to ES
+    # Cannot use specific_item method b/c lda has different parameter requirements for the request object
+    # Inital call to get item is not tracked
 
-    # Get ldaVector from first item
-    vector = json.dumps(json.loads(response.body)['docs'][0]['ldaVector'])
+    single_id = request.path_params['single_id']
+    if not re.match(r'[a-f0-9]{32}$', single_id):
+        raise HTTPException(400, "Bad ID: %s" % single_id)
 
     account = account_from_params(request.query_params)
+    good_item_params = ItemsQueryType({k: v for [k, v]
+                                       in request.query_params.items()})
+
+    good_item_params.update({'ids': [single_id]})
+    good_item_params['fields'] = 'ldaVector'
+    good_item_params['page_size'] = 1
+
+    result = search_items(good_item_params)
+    log.debug('cache size: %d' % search_cache.currsize)
+
+    if result['hits']['total'] == 0:
+        raise HTTPException(404)
+
+    item_rv = {
+        'count': result['hits']['total'],
+        'docs': [hit['_source'] for hit in result['hits']['hits']]
+    }
+
+    response = response_object(item_rv, good_item_params, None)
+
+    # Get lda vector from first item (as string)
+    vector = json.dumps(json.loads(response.body)['docs'][0]['ldaVector'])
+
+    # Get items with similar lda vectors by making a second call to ES
+    # This second call is tracked
 
     goodparams = LDAQueryType({k: v for [k, v]
                                in request.query_params.items()})

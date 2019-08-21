@@ -18,7 +18,7 @@ routes = [
     Route('/random',
           methods=['GET', 'OPTIONS'],
           endpoint=handlers.random),
-    Route('/items/{id_or_ids}/lda',
+    Route('/items/{single_id}/lda',
           methods=['GET', 'OPTIONS'],
           endpoint=handlers.lda)
 ]
