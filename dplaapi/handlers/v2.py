@@ -477,9 +477,14 @@ async def mlt(request):
 async def lda(request):
     """Cosine similarity for LDA vector"""
 
-    item = await specific_item(request)
+    response = await specific_item(request)
 
-    return item
+    vector = json.loads(response.body)['docs'][0]['ldaVector']
+
+    print('Vector:')
+    print(vector)
+
+    return response
 
 
 async def api_key(request):
