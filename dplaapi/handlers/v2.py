@@ -203,7 +203,7 @@ def flatten(the_list):
     don't work because they explode strings into arrays.
     """
     if the_list is None:
-        raise StopIteration
+        return []
     for el in the_list:
         if isinstance(el, list):
             for sub_el in flatten(el):
