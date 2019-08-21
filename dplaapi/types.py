@@ -473,6 +473,16 @@ mlt_params = {
     'api_key': items_params['api_key']
 }
 
+lda_params = {
+    'fields': items_params['fields'],
+    'page': items_params['page'],
+    'page_size': items_params['page_size'],
+    'sort_by': items_params['sort_by'],
+    'sort_order': items_params['sort_order'],
+    'callback': items_params['callback'],
+    'api_key': items_params['api_key']
+}
+
 
 class BaseQueryType(dict):
     params_specification = {}  # To be overridden
@@ -539,3 +549,10 @@ class MLTQueryType(BaseQueryType):
 
     def __init__(self, *args):
         super(MLTQueryType, self).__init__(*args)
+
+
+class LDAQueryType(BaseQueryType):
+    params_specification = lda_params
+
+    def __init__(self, *args):
+        super(LDAQueryType, self).__init__(*args)

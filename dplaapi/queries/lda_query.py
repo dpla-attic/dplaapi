@@ -7,7 +7,6 @@ Cosine similarity search on LDA vector
 
 from .base_query import BaseQuery
 
-
 query_skel = {
     'query': {
         'script_score': {
@@ -27,7 +26,7 @@ query_skel = {
         {'id': {'order': 'asc'}}
     ]
 }
-
+# TODO add more params, start at 1
 
 class LDAQuery(BaseQuery):
     """Elasticsearch Cosine Similarity query on LDA vector
@@ -45,9 +44,10 @@ class LDAQuery(BaseQuery):
         - params: The request's querystring parameters
         """
         self.query = query_skel.copy()
-        # like_list = [{'_type': 'item', '_id': x}
-        #              for x in params['ids']]
-        self.query['query']['script']['params']['queryVector'] = params['vector']
+
+        vector_str = params['vector'].rstrip(']').lstrip('[').split(',')
+        vector = [float(s) for s in vector_str]
+        self.query['query']['script_score']['script']['params']['queryVector'] = vector
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')

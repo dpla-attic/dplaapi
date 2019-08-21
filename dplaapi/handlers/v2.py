@@ -10,9 +10,10 @@ import secrets
 from starlette.exceptions import HTTPException
 from starlette.background import BackgroundTask
 from cachetools import cached, TTLCache
-from dplaapi.types import ItemsQueryType, MLTQueryType
+from dplaapi.types import ItemsQueryType, MLTQueryType, LDAQueryType
 from dplaapi.queries.search_query import SearchQuery
 from dplaapi.queries.mlt_query import MLTQuery
+from dplaapi.queries.lda_query import LDAQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
 from dplaapi.analytics import track
@@ -23,6 +24,7 @@ log = logging.getLogger(__name__)
 ok_email_pat = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
 search_cache = TTLCache(maxsize=100, ttl=20)
 mlt_cache = TTLCache(maxsize=50, ttl=20)
+lda_cache = TTLCache(maxsize=50, ttl=20)
 
 
 def items_key(params):
@@ -122,6 +124,18 @@ def mlt_items(params):
     mltq = MLTQuery(params)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % mltq.query)
     return items(mltq)
+
+
+@cached(lda_cache, key=items_key)
+def lda_items(params):
+    """Get records with similar LDA vectors
+
+    Arguments:
+    - params: Dict of querystring or path parameters
+    """
+    ldaq = LDAQuery(params)
+    log.debug("Elasticsearch QUERY (Python dict):\n%s" % ldaq.query)
+    return items(ldaq)
 
 
 def formatted_facets(es6_aggregations):
@@ -479,12 +493,32 @@ async def lda(request):
 
     response = await specific_item(request)
 
-    vector = json.loads(response.body)['docs'][0]['ldaVector']
+    # Get ldaVector from first item
+    vector = json.dumps(json.loads(response.body)['docs'][0]['ldaVector'])
 
-    print('Vector:')
-    print(vector)
+    account = account_from_params(request.query_params)
 
-    return response
+    goodparams = LDAQueryType({k: v for [k, v]
+                               in request.query_params.items()})
+    goodparams.update({'vector': vector})
+
+    result = lda_items(goodparams)
+    log.debug('cache size: %d' % lda_cache.currsize)
+
+    rv = {
+        'count': result['hits']['total'],
+        'start': (int(goodparams['page']) - 1)
+                 * int(goodparams['page_size'])  # noqa: E131
+                 + 1,                            # noqa: E131
+        'limit': int(goodparams['page_size']),
+        'docs': [compact(hit['_source'], goodparams)
+                 for hit in result['hits']['hits']]
+    }
+
+    if account and not account.staff:
+        track(request, rv, account.key, 'LDA Vector Similarity search results')
+
+    return response_object(rv, goodparams)
 
 
 async def api_key(request):
