@@ -15,8 +15,7 @@ query_skel_search = {
     'sort': [
         {'_score': {'order': 'desc'}},
         {'id': {'order': 'asc'}}
-    ],
-    'track_total_hits': 'true'
+    ]
 }
 
 query_skel_specific_ids = {
