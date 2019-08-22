@@ -14,7 +14,8 @@ query_skel = {
                 'match_all': {}
             },
             'script': {
-                'source': 'cosineSimilarity(params.queryVector, doc.ldaVector)',
+                'source':
+                    'cosineSimilarity(params.queryVector, doc.ldaVector)',
                 'params': {
                     'queryVector': []
                 }
@@ -26,7 +27,7 @@ query_skel = {
         {'id': {'order': 'asc'}}
     ]
 }
-# TODO add more params, start at 1
+
 
 class LDAQuery(BaseQuery):
     """Elasticsearch Cosine Similarity query on LDA vector
@@ -47,7 +48,8 @@ class LDAQuery(BaseQuery):
 
         vector_str = params['vector']
         vector = [float(s) for s in vector_str]
-        self.query['query']['script_score']['script']['params']['queryVector'] = vector
+        self.query['query']['script_score']['script']['params']['queryVector']\
+            = vector
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')

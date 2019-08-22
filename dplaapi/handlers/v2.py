@@ -496,7 +496,7 @@ async def lda_item(item_id):
     if not re.match(r'[a-f0-9]{32}$', item_id):
         raise HTTPException(400, "Bad ID: %s" % item_id)
 
-    item_params ={'ids': [item_id], 'fields': 'ldaVector', 'page_size': 1}
+    item_params = {'ids': [item_id], 'fields': 'ldaVector', 'page_size': 1}
     result = search_items(item_params)
 
     log.debug('cache size: %d' % search_cache.currsize)
@@ -528,7 +528,8 @@ async def lda(request):
     vector = json.loads(item_response.body)['docs'][0].get('ldaVector')
 
     if vector is None:
-        raise HTTPException(404, "Item does not have a LDA vector: %s" % single_id)
+        raise HTTPException(404, "Item does not have a LDA vector: %s"
+                            % single_id)
 
     vector_str = [str(s) for s in vector]
     goodparams.update({'vector': vector_str})
