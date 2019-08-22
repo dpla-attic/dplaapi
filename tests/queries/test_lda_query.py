@@ -21,3 +21,11 @@ def test_LDAQuery_has_correct_default_sort():
         {'_score': {'order': 'desc'}},
         {'id': {'order': 'asc'}},
     ]
+
+def test_LDAQuery_has_source_clause_for_fields_parameter():
+    """If there's a "fields" query param, there's a "_source" property in the
+    Elasticsearch query."""
+    params = LDAQueryType({'fields': 'id'})
+    params.update({'vector': ['0.1', '0.3']})
+    q = LDAQuery(params)
+    assert q.query['_source'] == ['id']
