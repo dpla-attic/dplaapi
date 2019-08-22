@@ -520,15 +520,16 @@ async def lda(request):
 
     response = response_object(item_rv, good_item_params, None)
 
-    # Get lda vector from first item (as string)
-    vector = json.dumps(json.loads(response.body)['docs'][0]['ldaVector'])
+    # Get lda vector from first item (as array of string)
+    vector = json.loads(response.body)['docs'][0]['ldaVector']
+    vector_str = [str(s) for s in vector]
 
     # Get items with similar lda vectors by making a second call to ES
     # This second call is tracked
 
     goodparams = LDAQueryType({k: v for [k, v]
                                in request.query_params.items()})
-    goodparams.update({'vector': vector})
+    goodparams.update({'vector': vector_str})
 
     result = lda_items(goodparams)
     log.debug('cache size: %d' % lda_cache.currsize)

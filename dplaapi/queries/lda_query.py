@@ -45,7 +45,8 @@ class LDAQuery(BaseQuery):
         """
         self.query = query_skel.copy()
 
-        vector_str = params['vector'].rstrip(']').lstrip('[').split(',')
+        # vector_str = params['vector'].rstrip(']').lstrip('[').split(',')
+        vector_str = params['vector']
         vector = [float(s) for s in vector_str]
         self.query['query']['script_score']['script']['params']['queryVector'] = vector
 
