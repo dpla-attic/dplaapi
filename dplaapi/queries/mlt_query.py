@@ -52,3 +52,6 @@ class MLTQuery(BaseQuery):
 
         self.query['from'] = (params['page'] - 1) * params['page_size']
         self.query['size'] = params['page_size']
+
+        if 'sort_by' in params:
+            self.add_sort_clause(params)
