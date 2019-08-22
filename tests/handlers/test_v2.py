@@ -488,6 +488,57 @@ def test_mlt_rejects_invalid_params(monkeypatch, mocker):
 
 # end mlt tests.
 
+# lda tests ...
+
+@pytest.mark.usefixtures('disable_auth')
+def test_lda_calls_lda_items_correctly(monkeypatch):
+    """/v2/items/<item>/lda calls lda_items with dictionary"""
+    def mock_items(arg):
+        assert isinstance(arg, dict)
+        return minimal_good_response
+    monkeypatch.setattr(v2_handlers, 'lda_items', mock_items)
+    client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a/lda')
+
+
+@pytest.mark.usefixtures('disable_auth')
+def test_lda_returns_bad_request_err_for_bad_id(monkeypatch, mocker):
+    """It raises a Bad Request error for a badly-formatted record ID"""
+    response = client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a,x/lda')
+    assert response.status_code == 400
+
+
+@pytest.mark.usefixtures('disable_auth')
+def test_lda_rejects_invalid_params(monkeypatch, mocker):
+    """The LDA handler rejects parameters of the regular search that are
+    irrelevant and gives a clear message about the
+    parameter being invalid.
+    """
+    path = '/v2/items/13283cd2bd45ef385aae962b144c7e6a/lda?foo=bar'
+    response = client.get(path)
+    assert response.status_code == 400
+    assert 'is not a valid parameter' in response.json()
+
+
+@pytest.mark.usefixtures('disable_auth')
+def test_lda_returns_not_found_err_for_missing_ldaVector(monkeypatch, mocker):
+    """It raises Not Found error if item does not have an lda vector
+    """
+    def mock_items(*argv):
+        return minimal_good_response
+
+    def mock_account(*argv):
+        return models.Account(key='a1b2c3', email='x@example.org')
+
+    monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
+    track_stub = mocker.stub(name='track_stub')
+    monkeypatch.setattr(v2_handlers, 'track', track_stub)
+
+    path = '/v2/items/13283cd2bd45ef385aae962b144c7e6a/lda'
+    response = client.get(path)
+    assert response.status_code == 404
+
+# end lda tests.
 
 # specific_items tests ...
 
