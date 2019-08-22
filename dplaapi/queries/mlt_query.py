@@ -12,7 +12,7 @@ query_skel = {
     'query': {
         'more_like_this': {
             'fields': [
-                'sourceResource.title.mlt', 'sourceResource.subject.mlt'
+                'sourceResource.title.mlt', 'sourceResource.subject.mlt', 'sourceResource.description.mlt'
             ],
             'min_term_freq': 1,
             'min_doc_freq': 5,
