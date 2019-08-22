@@ -10,7 +10,8 @@ def test_LDAQuery_produces_query_with_like_clause():
     params = LDAQueryType()
     params.update({'vector': ['0.1', '0.3']})
     q = LDAQuery(params)
-    query_vector = q.query['query']['script_score']['script']['params']['queryVector']
+    query_vector = \
+        q.query['query']['script_score']['script']['params']['queryVector']
     assert query_vector == [0.1, 0.3]
 
 
