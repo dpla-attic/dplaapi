@@ -528,7 +528,7 @@ async def lda(request):
     vector = json.loads(item_response.body)['docs'][0].get('ldaVector')
 
     if vector is None:
-        raise HTTPException(404, "Item does not have a LDA vector: %s"
+        raise HTTPException(500, "Item does not have a LDA vector: %s"
                             % single_id)
 
     vector_str = [str(s) for s in vector]
