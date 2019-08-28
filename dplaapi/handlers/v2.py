@@ -551,9 +551,15 @@ async def lda(request):
     }
 
     if account and not account.staff:
-        track(request, rv, account.key, 'LDA Vector Similarity search results')
+        task = BackgroundTask(track,
+                              request=request,
+                              results=rv,
+                              api_key=account.key,
+                              title='LDA Vector Similarity search results')
+    else:
+        task = None
 
-    return response_object(rv, goodparams)
+    return response_object(rv, goodparams, task)
 
 
 async def api_key(request):
