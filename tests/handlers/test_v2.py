@@ -537,7 +537,7 @@ def test_lda_returns_not_found_err_for_missing_ldaVector(monkeypatch, mocker):
 
     path = '/v2/items/13283cd2bd45ef385aae962b144c7e6a/lda'
     response = client.get(path)
-    assert response.status_code == 404
+    assert response.status_code == 500
 
 # end lda tests.
 
