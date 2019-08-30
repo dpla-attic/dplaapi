@@ -12,7 +12,7 @@ gunicorn==19.9.0
 h11==0.8.1
 httptools==0.0.11
 idna==2.7
-Jinja2==2.10
+Jinja2==2.10.1
 jmespath==0.9.3
 MarkupSafe==1.0
 peewee==3.6.4
@@ -23,7 +23,7 @@ requests==2.20.0
 s3transfer==0.1.13
 six==1.11.0
 starlette==0.7.0
-urllib3==1.23
+urllib3==1.24.2
 uvicorn==0.8.6
 uvloop==0.12.0rc1
 websockets==7.0
