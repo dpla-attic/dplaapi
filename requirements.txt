@@ -24,7 +24,7 @@ s3transfer==0.1.13
 six==1.11.0
 starlette==0.7.0
 urllib3==1.24.2
-uvicorn==0.8.6
+git+https://github.com/dpla/uvicorn.git@send-400-for-invalid-request#egg=uvicorn
 uvloop==0.12.0rc1
 websockets==7.0
 
