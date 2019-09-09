@@ -33,7 +33,7 @@ minimal_good_response = {
     'timed_out': False,
     'shards': {'total': 3, 'successful': 3, 'skipped': 0, 'failed': 0},
     'hits': {
-        'total': 1,
+        'total': {'value': 1},
         'max_score': None,
         'hits': [
             {'_source': {'sourceResource': {'title': 'x'}}}
@@ -603,7 +603,7 @@ async def test_specific_item_NotFound_for_zero_hits(monkeypatch, mocker):
     """It raises a Not Found if there are no documents"""
 
     def mock_zero_items(*args):
-        return {'hits': {'total': 0}}
+        return {'hits': {'total': {'value': 0}}}
 
     monkeypatch.setattr(v2_handlers, 'items', mock_zero_items)
 
