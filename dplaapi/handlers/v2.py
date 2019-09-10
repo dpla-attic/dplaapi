@@ -96,7 +96,9 @@ def random(request):
     result = items(sq)
 
     # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] if type(result['hits']['total']) is dict else result['hits']['total']
+    hit_count = result['hits']['total']['value'] \
+        if type(result['hits']['total']) is dict \
+        else result['hits']['total']
 
     rv = {
         'count': hit_count,
@@ -382,7 +384,9 @@ async def multiple_items(request):
     log.debug('cache size: %d' % search_cache.currsize)
 
     # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] if type(result['hits']['total']) is dict else result['hits']['total']
+    hit_count = result['hits']['total']['value'] \
+        if type(result['hits']['total']) is dict \
+        else result['hits']['total']
 
     rv = {
         'count': hit_count,
@@ -428,7 +432,9 @@ async def specific_item(request):
     log.debug('cache size: %d' % search_cache.currsize)
 
     # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] if type(result['hits']['total']) is dict else result['hits']['total']
+    hit_count = result['hits']['total']['value'] \
+        if type(result['hits']['total']) is dict \
+        else result['hits']['total']
 
     if hit_count == 0:
         raise HTTPException(404)
@@ -468,7 +474,9 @@ async def mlt(request):
     log.debug('cache size: %d' % mlt_cache.currsize)
 
     # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] if type(result['hits']['total']) is dict else result['hits']['total']
+    hit_count = result['hits']['total']['value'] \
+        if type(result['hits']['total']) is dict \
+        else result['hits']['total']
 
     rv = {
         'count': hit_count,
