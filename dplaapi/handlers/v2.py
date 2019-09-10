@@ -95,13 +95,8 @@ def random(request):
 
     result = items(sq)
 
-    # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] \
-        if type(result['hits']['total']) is dict \
-        else result['hits']['total']
-
     rv = {
-        'count': hit_count,
+        'count': hit_count(result),
         'docs': [hit['_source'] for hit in result['hits']['hits']]
     }
 
@@ -383,13 +378,8 @@ async def multiple_items(request):
     result = search_items(goodparams)
     log.debug('cache size: %d' % search_cache.currsize)
 
-    # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] \
-        if type(result['hits']['total']) is dict \
-        else result['hits']['total']
-
     rv = {
-        'count': hit_count,
+        'count': hit_count(result),
         'start': (int(goodparams['page']) - 1)
                   * int(goodparams['page_size'])               # noqa: E131
                   + 1,                                         # noqa: E131
@@ -431,16 +421,11 @@ async def specific_item(request):
     result = search_items(goodparams)
     log.debug('cache size: %d' % search_cache.currsize)
 
-    # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] \
-        if type(result['hits']['total']) is dict \
-        else result['hits']['total']
-
-    if hit_count == 0:
+    if hit_count(result) == 0:
         raise HTTPException(404)
 
     rv = {
-        'count': hit_count,
+        'count': hit_count(result),
         'docs': [hit['_source'] for hit in result['hits']['hits']]
     }
 
@@ -473,13 +458,8 @@ async def mlt(request):
     result = mlt_items(goodparams)
     log.debug('cache size: %d' % mlt_cache.currsize)
 
-    # ES7: result['hits']['total']['value'], ES6: result['hits']['total']
-    hit_count = result['hits']['total']['value'] \
-        if type(result['hits']['total']) is dict \
-        else result['hits']['total']
-
     rv = {
-        'count': hit_count,
+        'count': hit_count(result),
         'start': (int(goodparams['page']) - 1)
                   * int(goodparams['page_size'])               # noqa: E131
                   + 1,                                         # noqa: E131
@@ -534,3 +514,12 @@ async def api_key(request):
         db.close()
 
     return JSONResponse('API key created and sent to %s' % email)
+
+
+def hit_count(result):
+    """ Parse the hit count from an ElasticSearch response
+        ES7: result['hits']['total']['value'], ES6: result['hits']['total']"""
+
+    return result['hits']['total']['value'] \
+        if type(result['hits']['total']) is dict \
+        else result['hits']['total']
