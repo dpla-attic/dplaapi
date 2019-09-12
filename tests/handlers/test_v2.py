@@ -65,18 +65,6 @@ es6_facets = {
             ]
         }
     },
-    "sourceResource.date.begin.decade": {
-        "buckets": [
-            {
-                "key": "1520-1529",
-                "from": -14200704000000,
-                "from_as_string": "1520",
-                "to": -13916620800000,
-                "to_as_string": "1529",
-                "doc_count": 10
-            }
-        ]
-    },
     'sourceResource.spatial.coordinates': {
         'buckets': [
             {
@@ -917,15 +905,6 @@ def test_formatted_facets():
                 {
                     'time': '1947',
                     'count': 1
-                }
-            ]
-        },
-        'sourceResource.date.begin.decade': {
-            '_type': 'date_histogram',
-            'entries': [
-                {
-                    'time': '1520',
-                    'count': 10
                 }
             ]
         },

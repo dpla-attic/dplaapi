@@ -167,7 +167,7 @@ def date_facets(this_agg):
 def dict_with_date_buckets(a_dict):
     """Given an Elasticsearch aggregation, return the 'buckets' part.
 
-    Also sort it in descending order if it's a range facet (decade, century)
+    Also sort it in descending order if it's a range facet
     because Elasticsearch always returns those in ascending order.
     """
     if 'buckets' in a_dict:

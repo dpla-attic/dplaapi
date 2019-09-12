@@ -171,13 +171,6 @@ def facets_for(field_name, size):
                                           actual_field,
                                           interval,
                                           size)
-            else:
-                # We lie.  We really have to use a 'range' aggregation for
-                # month, decade, and century, but 'date_histogram' was
-                # always the term used in the response, since before we
-                # upgraded to Elasticsearch 6 and the API was ported over to
-                # this application.
-                return date_range_agg(actual_field, interval, size)
         else:
             return {'terms': {'field': actual_field, 'size': size}}
 
@@ -213,28 +206,6 @@ def date_histogram_agg(facet_name, actual_field, interval, size):
                     'order': {'_key': 'desc'}
                 }
             }
-        }
-    }
-
-
-def date_range_agg(actual_field, interval, size):
-    span = {'decade': 10, 'century': 100}
-    y_first = int(datetime.now().year / span[interval]) * span[interval]
-    y_last = y_first + span[interval] - 1
-    first_and_last = {
-        'decade': ((y_first - i, y_last - i)
-                   for i in range(0, 500, 10)),  # last 500 years
-        'century': ((y_first - i, y_last - i)
-                    for i in range(0, 5000, 100))  # last 5000 years
-    }
-    ranges = [{'from': str(x[0]), 'to': str(x[1])}
-              for x in first_and_last[interval]]
-    return {
-        'date_range': {
-            'field': actual_field,
-            'ranges': ranges,
-            'format': 'yyyy'
-            # 'order' is not a valid property for a 'range' aggregation.
         }
     }
 
