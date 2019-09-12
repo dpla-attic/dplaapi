@@ -6,7 +6,6 @@ Elasticsearch Search API query
 """
 
 import re
-from datetime import datetime
 from apistar.exceptions import ValidationError
 from dplaapi.facets import facets
 from dplaapi.field_or_subfield import field_or_subfield
