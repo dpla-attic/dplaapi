@@ -30,7 +30,7 @@ query_skel_specific_ids = {
 # The key is the field name and the value is the boost, and also indicates if
 # the field will be used in a "simple search" "q=" query.
 #
-fields_to_query = {
+fields_to_query = { 
     'dataProvider': '1',
     'hasView': None,
     'hasView.@id': None,
@@ -293,6 +293,9 @@ class SearchQuery(BaseQuery):
             size = facet_size(constraints)
             self.query['aggs'] = facets_clause(constraints['facets'], size)
 
+        if 'filter' in constraints:
+            self.filter_clause(constraints['filter'])
+
         if 'random' in constraints:
             # Override all other query parameters and return one random record
             self.query["query"] = {
@@ -301,6 +304,11 @@ class SearchQuery(BaseQuery):
                 }
             }
             self.query["size"] = 1
+
+    def filter_clause(self, filter):
+        # TODO Support multiple filters
+        clause = { 'term': {k: v} for (k,v) in filter.items() }
+        self.query['query']['bool']['filter'] = clause
 
     def add_query_string_clause(self, field, term, constraints):
         clause = {
