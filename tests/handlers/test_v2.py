@@ -385,7 +385,7 @@ async def test_multiple_items_calls_BackgroundTask(monkeypatch,
 async def test_multiple_items_strips_lone_star_vals(monkeypatch, mocker):
 
     def mock_items(*argv):
-            return minimal_good_response
+        return minimal_good_response
 
     def mock_account(*argv):
         return models.Account(key='a1b2c3', email='x@example.org')

@@ -96,9 +96,9 @@ def comma_del_string(list_or_string):
 
 
 async def track(request, results, api_key, title):
-        tid = os.getenv('GA_TID')
-        if tid:
-            GATracker(tid, request, results, api_key, title).run()
+    tid = os.getenv('GA_TID')
+    if tid:
+        GATracker(tid, request, results, api_key, title).run()
 
 
 def post(url, body):
