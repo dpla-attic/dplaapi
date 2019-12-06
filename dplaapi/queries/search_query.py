@@ -11,7 +11,7 @@ from dplaapi.facets import facets
 from dplaapi.field_or_subfield import field_or_subfield
 from .base_query import BaseQuery
 
-query_skel_search = {
+query_skel_search = { 
     'sort': [
         {'_score': {'order': 'desc'}},
         {'id': {'order': 'asc'}}
@@ -263,7 +263,19 @@ class SearchQuery(BaseQuery):
 
         if not fields.keys():
             self.query = query_skel_search.copy()
-            self.query['query'] = {'match_all': {}}
+#   "query": {
+#     "bool": {
+#       "must": {
+#         "match_all": {}
+#       },
+#       "filter": {
+#         "term": {
+#           "status": "active"
+#         }
+#       }
+#     }
+#   }
+            self.query['query'] = {'bool': { self.bool_type: [ {'match_all': {} }] }}
 
         elif 'ids' in fields:
             self.query = query_skel_specific_ids.copy()
@@ -293,8 +305,9 @@ class SearchQuery(BaseQuery):
             size = facet_size(constraints)
             self.query['aggs'] = facets_clause(constraints['facets'], size)
 
-        if 'filter' in constraints:
-            self.filter_clause(constraints['filter'])
+        if ('filter.field' in constraints and 'filter.value' in constraints):
+            self.filter_clause(constraints['filter.field'], 
+                constraints['filter.value'])
 
         if 'random' in constraints:
             # Override all other query parameters and return one random record
@@ -305,10 +318,10 @@ class SearchQuery(BaseQuery):
             }
             self.query["size"] = 1
 
-    def filter_clause(self, filter):
+    def filter_clause(self, filter_field, filter_value):
         # TODO Support multiple filters
-        clause = { 'term': {k: v} for (k,v) in filter.items() }
-        self.query['query']['bool']['filter'] = clause
+        # clause = { 'term': {k: v} for (k,v) in filter.items() }
+        self.query['query']['bool']['filter'] = { 'term': { filter_field: filter_value} }
 
     def add_query_string_clause(self, field, term, constraints):
         clause = {
