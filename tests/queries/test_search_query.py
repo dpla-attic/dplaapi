@@ -12,8 +12,8 @@ def test_SearchQuery_produces_match_all_for_no_query_terms():
     """SearchQuery produces 'match_all' syntax if there are no search terms"""
     params = types.ItemsQueryType()
     sq = search_query.SearchQuery(params)
-    assert 'match_all' in sq.query['query']
-    assert 'bool' not in sq.query['query']
+    assert 'match_all' in str(sq.query)
+    assert 'bool' in sq.query['query']
 
 
 def test_SearchQuery_produces_bool_query_for_query_terms():
@@ -87,7 +87,7 @@ def test_SearchQuery_can_handle_match_all_and_fields():
     """A correct ES query is generated for a match_all() with a _source prop"""
     params = types.ItemsQueryType({'fields': 'id'})
     sq = search_query.SearchQuery(params)
-    assert 'match_all' in sq.query['query']
+    assert 'match_all' in str(sq.query)
     assert '_source' in sq.query
 
 
