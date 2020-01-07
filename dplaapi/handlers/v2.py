@@ -532,7 +532,7 @@ async def lda(request):
                             % single_id)
 
     vector_str = [str(s) for s in vector]
-    goodparams.update({'vector': vector_str})
+    goodparams.update({'vector': vector_str, 'id': single_id})
 
     # Get items with similar lda vectors by making a second call to ES
     # This second call is tracked

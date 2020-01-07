@@ -474,6 +474,7 @@ mlt_params = {
 }
 
 lda_params = {
+    'id': items_params['id'],
     'fields': items_params['fields'],
     'page': items_params['page'],
     'page_size': items_params['page_size'],

@@ -11,7 +11,16 @@ query_skel = {
     'query': {
         'script_score': {
             'query': {
-                'match_all': {}
+                'bool': {
+                    'must': {
+                        'match_all': {},
+                    },
+                    'must_not': {
+                        'term': {
+                            'id': ''
+                        }
+                    }
+                }
             },
             'script': {
                 'source':
@@ -50,6 +59,8 @@ class LDAQuery(BaseQuery):
         vector = [float(s) for s in vector_str]
         self.query['query']['script_score']['script']['params']['queryVector']\
             = vector
+
+        self.query['query']['script_score']['query']['bool']['must_not']['term']['id'] = params['id']
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')
