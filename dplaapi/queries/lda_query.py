@@ -57,10 +57,12 @@ class LDAQuery(BaseQuery):
 
         vector_str = params['vector']
         vector = [float(s) for s in vector_str]
-        self.query['query']['script_score']['script']['params']['queryVector']\
-            = vector
 
-        self.query['query']['script_score']['query']['bool']['must_not']['term']['id'] = params['id']
+        script_score = self.query['query']['script_score']
+
+        script_score['script']['params']['queryVector'] = vector
+
+        script_score['query']['bool']['must_not']['term']['id'] = params['id']
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')
