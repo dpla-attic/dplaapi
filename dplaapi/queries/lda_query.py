@@ -7,13 +7,15 @@ Cosine similarity search on LDA vector
 
 from .base_query import BaseQuery
 
+# max terminate_after is 3878 based on testing
+
 query_skel = {
     'query': {
         'script_score': {
             'query': {
                 'bool': {
                     'must': {
-                        'match_all': {},
+                        'match': {'sourceResource.subject.name': 'spoon'},
                     },
                     'must_not': {
                         'term': {
