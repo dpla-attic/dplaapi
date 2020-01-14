@@ -369,22 +369,29 @@ def account_from_params(params):
 
 
 async def multiple_items(request):
-
+    print("IN: multiple_items")
     account = account_from_params(request.query_params)
-    goodparams = ItemsQueryType({k: v for (k, v)
-                                 in request.query_params.items()
-                                 if v != '*'})
-
-    result = search_items(goodparams)
+    goodparams = {}
+    for (k, v) in request.query_params.items():
+        if v == '*':
+            continue
+        if k == "filter":
+            if 'filter' not in goodparams:
+                goodparams['filter'] = []
+            goodparams['filter'].append(v)
+        else:
+            goodparams[k] = v
+    item_query = ItemsQueryType(goodparams)
+    result = search_items(item_query)
     log.debug('cache size: %d' % search_cache.currsize)
 
     rv = {
         'count': hit_count(result),
-        'start': (int(goodparams['page']) - 1)
-                  * int(goodparams['page_size'])               # noqa: E131
+        'start': (int(item_query['page']) - 1)
+                  * int(item_query['page_size'])               # noqa: E131
                   + 1,                                         # noqa: E131
-        'limit': int(goodparams['page_size']),
-        'docs': [compact(hit['_source'], goodparams)
+        'limit': int(item_query['page_size']),
+        'docs': [compact(hit['_source'], item_query)
                  for hit in result['hits']['hits']],
         'facets': formatted_facets(result.get('aggregations', {}))
     }
@@ -398,7 +405,7 @@ async def multiple_items(request):
     else:
         task = None
 
-    return response_object(rv, goodparams, task)
+    return response_object(rv, item_query, task)
 
 
 async def specific_item(request):

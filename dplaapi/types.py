@@ -24,20 +24,17 @@ items_params = {
             max_length=200,
             pattern=r'^[a-zA-Z\.,@]+',
             allow_null=True),
-    'filter.field': apistar.validators.String(
-            title='Fields',
-            description='Field to filter by',
-            min_length=2,
+    'filter': apistar.validators.Array(
+        title='Filter',
+        description='A list of filters to apply to the query.',
+        min_items=0,
+        items=apistar.validators.String(
+            title='Filter',
+            description='Field and value to filter by, separated by :',
+            min_length=3,
             max_length=200,
-            pattern=r'^[a-zA-Z\.,@]+',
-            allow_null=True),
-    'filter.value': apistar.validators.String(
-            title='Fields',
-            description='Value to filter by',
-            min_length=2,
-            max_length=200,
-            pattern=r'^[a-zA-Z\.,@]+',
-            allow_null=True),
+            pattern=r'^[a-zA-Z\.,@]+:[a-zA-Z\.,@]+',
+            allow_null=True)),
     'page': apistar.validators.String(
             title='Page',
             description='Page Number',
