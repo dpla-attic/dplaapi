@@ -369,7 +369,6 @@ def account_from_params(params):
 
 
 async def multiple_items(request):
-    print("IN: multiple_items")
     account = account_from_params(request.query_params)
     goodparams = {}
     for (k, v) in request.query_params.items():
