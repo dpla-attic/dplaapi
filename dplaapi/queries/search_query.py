@@ -306,9 +306,8 @@ class SearchQuery(BaseQuery):
             size = facet_size(constraints)
             self.query['aggs'] = facets_clause(constraints['facets'], size)
 
-        if ('filter.field' in constraints and 'filter.value' in constraints):
-            self.filter_clause(constraints['filter.field'],
-                               constraints['filter.value'])
+        if 'filter' in constraints:
+            self.filter_clause(constraints['filter'])
 
         if 'random' in constraints:
             # Override all other query parameters and return one random record
@@ -319,12 +318,12 @@ class SearchQuery(BaseQuery):
             }
             self.query["size"] = 1
 
-    def filter_clause(self, filter_field, filter_value):
-        # TODO Support multiple filters
-        # clause = {'term': {k: v} for (k,v) in filter.items() }
-        self.query['query']['bool']['filter'] = {'term':
-                                                 {filter_field:
-                                                  filter_value}}
+    def filter_clause(self, filters):
+        terms = []
+        for filter_pair in filters:
+            field, value = filter_pair.split(":", 1)
+            terms.append({'term':  {field: value}})
+        self.query['query']['bool']['filter'] = {'bool': {'must': terms}}
 
     def add_query_string_clause(self, field, term, constraints):
         clause = {
