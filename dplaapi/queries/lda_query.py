@@ -15,7 +15,7 @@ query_skel = {
             'query': {
                 'bool': {
                     'must': {
-                        'match': {'sourceResource.subject.name': 'spoon'},
+                        'match': {'ldaBucket': ''},
                     },
                     'must_not': {
                         'term': {
@@ -28,7 +28,8 @@ query_skel = {
                 'source':
                     'cosineSimilarity(params.queryVector, doc.ldaVector)',
                 'params': {
-                    'queryVector': []
+                    'queryVector': [],
+                    'size': 100
                 }
             }
         }
@@ -65,6 +66,8 @@ class LDAQuery(BaseQuery):
         script_score['script']['params']['queryVector'] = vector
 
         script_score['query']['bool']['must_not']['term']['id'] = params['id']
+
+        script_score['query']['bool']['must']['match']['ldaBucket'] = params['bucket']
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')
