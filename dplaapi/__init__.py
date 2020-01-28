@@ -5,7 +5,7 @@ dplaapi
 A web API for querying the Digital Public Library of America's metadata
 """
 
-__version__ = '2.1.0'
+__version__ = '2.2.0'
 
 import os
 import logging
