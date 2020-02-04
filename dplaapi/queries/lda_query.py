@@ -69,7 +69,7 @@ class LDAQuery(BaseQuery):
         script_score['query']['bool']['must_not']['term']['id'] = params['id']
 
         bucket_list = [{'match': {'ldaBucket': x}}
-                     for x in params['bucket']]
+                       for x in params['bucket']]
 
         script_score['query']['bool']['should'] = bucket_list
 
