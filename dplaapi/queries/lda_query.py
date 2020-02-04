@@ -15,7 +15,7 @@ query_skel = {
             'query': {
                 'bool': {
                     'should': {
-                        'match': {'ldaBucket': ''},
+                        'match': [{'ldaBucket': ''}],
                     },
                     'must_not': {
                         'term': {
@@ -68,7 +68,7 @@ class LDAQuery(BaseQuery):
 
         script_score['query']['bool']['must_not']['term']['id'] = params['id']
 
-        script_score['query']['bool']['should']['match']['ldaBucket'] = params['bucket']
+        script_score['query']['bool']['should'] = [{'match': {'ldaBucket': params['bucket']}}]
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')
