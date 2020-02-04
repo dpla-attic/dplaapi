@@ -496,7 +496,8 @@ async def lda_item(item_id):
     if not re.match(r'[a-f0-9]{32}$', item_id):
         raise HTTPException(400, "Bad ID: %s" % item_id)
 
-    item_params = {'ids': [item_id], 'fields': 'ldaVector,ldaBucket', 'page_size': 1}
+    item_params = \
+        {'ids': [item_id], 'fields': 'ldaVector,ldaBucket', 'page_size': 1}
     result = search_items(item_params)
 
     log.debug('cache size: %d' % search_cache.currsize)
@@ -536,7 +537,10 @@ async def lda(request):
                             % single_id)
 
     vector_str = [str(s) for s in vector]
-    goodparams.update({'vector': vector_str, 'bucket': bucket, 'id': single_id})
+
+    goodparams.update({'vector': vector_str,
+                       'bucket': bucket,
+                       'id': single_id})
 
     # Get items with similar lda vectors by making a second call to ES
     # This second call is tracked
