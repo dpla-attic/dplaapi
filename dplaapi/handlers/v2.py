@@ -527,7 +527,7 @@ async def lda(request):
     # Parse item vector
     doc = json.loads(item_response.body)['docs'][0]
     vector = doc.get('ldaVector')
-    bucket = doc.get('ldaBucket')[0]
+    bucket = doc.get('ldaBucket')
 
     # TODO address case of item not having ldaBucket
 

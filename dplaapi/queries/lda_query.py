@@ -68,7 +68,10 @@ class LDAQuery(BaseQuery):
 
         script_score['query']['bool']['must_not']['term']['id'] = params['id']
 
-        script_score['query']['bool']['should'] = [{'match': {'ldaBucket': params['bucket']}}]
+        bucket_list = [{'match': {'ldaBucket': x}}
+                     for x in params['bucket']]
+
+        script_score['query']['bool']['should'] = bucket_list
 
         if 'fields' in params:
             self.query['_source'] = params['fields'].split(',')
