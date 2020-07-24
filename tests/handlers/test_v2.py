@@ -717,10 +717,10 @@ async def test_specific_items_formats_response_metadata(monkeypatch, mocker):
     # See minimal_good_response above
     assert result['count'] == 1
     assert result['inactive_count'] == 1
-    assert result['docs'] == \
-           [hit['_source'] for hit in minimal_good_response['hits']['hits']]
-    assert result['inactive_docs'] == \
-           [hit['_source'] for hit in minimal_necro_response['hits']['hits']]
+    assert result['docs'] == [hit['_source'] for hit in
+                              minimal_good_response['hits']['hits']]
+    assert result['inactive_docs'] == [hit['_source'] for hit in
+                                       minimal_necro_response['hits']['hits']]
 
 
 # end specific_items tests.
