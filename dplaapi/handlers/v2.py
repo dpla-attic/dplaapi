@@ -85,7 +85,7 @@ def search_items(params):
 
 
 def search_necro(params):
-    """Get "item" records
+    """Get "item" records from necropolis
 
     Arguments:
     - params: Dict of querystring or path parameters

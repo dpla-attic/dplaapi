@@ -41,6 +41,19 @@ minimal_good_response = {
     }
 }
 
+minimal_necro_good_response = {
+    'took': 5,
+    'timed_out': False,
+    'shards': {'total': 3, 'successful': 3, 'skipped': 0, 'failed': 0},
+    'hits': {
+        'total': {'value': 1},
+        'max_score': None,
+        'hits': [
+            {'_source': {'id': '13283cd2bd45ef385aae962b144c7e6a'}}
+        ]
+    }
+}
+
 
 es6_facets = {
     'provider.name': {
@@ -519,6 +532,31 @@ async def test_specific_item_passes_ids(monkeypatch, mocker):
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_item_passes_ids_to_necropolis(monkeypatch, mocker):
+    """specific_item() calls search_items() with correct 'ids' parameter"""
+
+    def mock_search_items(*args):
+        return minimal_good_response
+
+    def mock_search_necro(*args):
+        return minimal_necro_good_response
+
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_search_items)
+    monkeypatch.setattr(v2_handlers, 'search_necro', mock_search_necro)
+    mocker.spy(v2_handlers, 'search_necro')
+    path_params = {'id_or_ids': '13283cd2bd45ef385aae962b144c7e6a'}
+    request = get_request('/v2/items/13283cd2bd45ef385aae962b144c7e6a',
+                          path_params=path_params)
+
+    await v2_handlers.specific_item(request)
+
+    v2_handlers.search_necro.assert_called_once_with(
+        {'page': 1, 'page_size': 1, 'sort_order': 'asc',
+         'ids': ['13283cd2bd45ef385aae962b144c7e6a']})
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
 async def test_specific_item_handles_multiple_ids(monkeypatch, mocker):
     """It splits ids on commas and calls search_items() with a list of those
     IDs
@@ -648,6 +686,37 @@ async def test_specific_item_calls_BackgroundTask(monkeypatch,
     BackgroundTask.__init__.assert_called_once_with(
         mocker.ANY, mocker.ANY, request=mocker.ANY, results=ok_data,
         api_key='a1b2c3', title='Fetch items')
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_auth')
+@pytest.mark.usefixtures('stub_tracking')
+async def test_specific_items_formats_response_metadata(monkeypatch, mocker):
+    """specific_items() assembles the correct response metadata"""
+
+    def mock_items(*argv):
+        return minimal_good_response
+
+    def mock_necro(*argv):
+        return minimal_necro_good_response
+
+    monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
+    monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'search_necro', mock_necro)
+
+    ids = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'id_or_ids': ids}
+    request = get_request("/v2/items/%s" % ids, path_params=path_params)
+    response_obj = await v2_handlers.specific_item(request)
+    result = json.loads(response_obj.body)
+
+    # See minimal_good_response above
+    assert result['count'] == 1
+    assert result['inactive_count'] == 1
+    assert result['docs'] == \
+        [hit['_source'] for hit in minimal_good_response['hits']['hits']]
+    assert result['inactive_docs'] == \
+           [hit['_source'] for hit in minimal_necro_good_response['hits']['hits']]
 
 
 # end specific_items tests.
