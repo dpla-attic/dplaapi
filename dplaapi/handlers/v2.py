@@ -44,7 +44,7 @@ def items_key(params):
     return tuple(sorted(items)) + ('v2_items',)
 
 
-def items(query, necro = False):
+def items(query, necro=False):
     """Return "item" records from a search query
 
     The search query could either be a typical SearchQuery or a MLTQuery
@@ -456,12 +456,11 @@ async def specific_item(request):
 
     else:
         if doc_count != 0:
-            rv.update(docs = [hit['_source'] for hit in
-                              result['hits']['hits']])
+            rv.update(docs=[hit['_source'] for hit in result['hits']['hits']])
 
         if inactive_doc_count != 0:
-            rv.update(inactive_docs = [hit['_source'] for hit in
-                                       necro_result['hits']['hits']])
+            rv.update(inactive_docs=[hit['_source'] for hit in
+                                     necro_result['hits']['hits']])
 
     if account and not account.staff:
         task = BackgroundTask(track,
