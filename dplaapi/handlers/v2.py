@@ -44,7 +44,7 @@ def items_key(params):
     return tuple(sorted(items)) + ('v2_items',)
 
 
-def items(query):
+def items(query, necro = False):
     """Return "item" records from a search query
 
     The search query could either be a typical SearchQuery or a MLTQuery
@@ -54,8 +54,10 @@ def items(query):
     - query:  instance of SearchQuery or MLTQuery, which has a `query'
               property.
     """
+    base = dplaapi.ES_BASE if necro == False else dplaapi.NECRO_BASE
+
     try:
-        resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=query.query)
+        resp = requests.post("%s/_search" % base, json=query.query)
         resp.raise_for_status()
     except requests.exceptions.HTTPError:
         if resp.status_code == 400:
@@ -80,6 +82,17 @@ def search_items(params):
     sq = SearchQuery(params)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
     return items(sq)
+
+
+def search_necro(params):
+    """Get "item" records
+
+    Arguments:
+    - params: Dict of querystring or path parameters
+    """
+    sq = SearchQuery(params)
+    log.debug("Necropolis QUERY (Python dict):\n%s" % sq.query)
+    return items(sq, True)
 
 
 def random(request):
@@ -425,15 +438,29 @@ async def specific_item(request):
     goodparams['page_size'] = len(ids)
 
     result = search_items(goodparams)
+    doc_count = hit_count(result)
     log.debug('cache size: %d' % search_cache.currsize)
 
-    if hit_count(result) == 0:
-        raise HTTPException(404)
+    necro_result = search_necro(goodparams)
+    inactive_doc_count = hit_count(necro_result)
 
     rv = {
-        'count': hit_count(result),
-        'docs': [hit['_source'] for hit in result['hits']['hits']]
-    }
+            'count': doc_count,
+            'inactive_count': inactive_doc_count,
+            'docs': [],
+            'inactive_docs': []
+         }
+
+    if doc_count == 0 and inactive_doc_count == 0:
+        raise HTTPException(404)
+
+    else:
+        if doc_count != 0:
+            rv.update(docs = [hit['_source'] for hit in result['hits']['hits']])
+
+        if inactive_doc_count != 0:
+            rv.update(inactive_docs = [hit['_source'] for hit in
+                                       necro_result['hits']['hits']])
 
     if account and not account.staff:
         task = BackgroundTask(track,

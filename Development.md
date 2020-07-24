@@ -101,8 +101,8 @@ $ git push origin master X.Y.N stable
 You can run the following series of commands when you're working on the code.
 ```
 $ cd /path/to/dplaapi
-$ PYTHONPATH=. ES_BASE=&lt;url&gt; gunicorn -k uvicorn.workers.UvicornWorker \
-  --log-level=debug --reload dplaapi:app
+$ PYTHONPATH=. ES_BASE=&lt;url&gt; NECRO_BASE=&lt;url&gt; gunicorn -k \
+uvicorn.workers.UvicornWorker --log-level=debug --reload dplaapi:app
 ```
 That works well if you're iterating over changes to the files and want to see
 how they work. The server will reload if you modify files.
@@ -120,6 +120,7 @@ $ cd /path/to/dplaapi
 $ docker run -d -p 9200:9200  dplatech/dplaapi_elasticsearch:latest
 $ docker run -d -p 5432:5432  dplatech/dplaapi_postgresql:latest
 $ PYTHONPATH=. ES_BASE=http://localhost:9200/dpla_alias \
+  NECRO_BASE=http://localhost:9200/necropolis \
   gunicorn -k uvicorn.workers.UvicornWorker --log-level=debug \
   --reload dplaapi:app
 ```
