@@ -41,6 +41,7 @@ minimal_good_response = {
     }
 }
 
+
 minimal_necro_good_response = {
     'took': 5,
     'timed_out': False,
@@ -159,8 +160,10 @@ def mock_disabled_Account_get(*args, **kwargs):
 def mock_not_found_Account_get(*args, **kwargs):
     raise DoesNotExist()
 
+
 def mock_search_necro_w_no_results(*args, **kwargs):
     return {'hits': {'total': {'value': 0}}}
+
 
 def get_request(path, querystring=None, path_params=None):
     rv = {'type': 'http', 'method': 'GET', 'path': path, 'query_string': b''}
@@ -605,7 +608,8 @@ async def test_specific_item_accepts_callback_querystring_param(monkeypatch,
         return minimal_good_response
 
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
-    monkeypatch.setattr(v2_handlers, 'search_necro', mock_search_necro_w_no_results)
+    monkeypatch.setattr(v2_handlers, 'search_necro',
+                        mock_search_necro_w_no_results)
     ids = '13283cd2bd45ef385aae962b144c7e6a'
     path_params = {'id_or_ids': ids}
     query_string = 'callback=f'
@@ -714,9 +718,10 @@ async def test_specific_items_formats_response_metadata(monkeypatch, mocker):
     assert result['count'] == 1
     assert result['inactive_count'] == 1
     assert result['docs'] == \
-        [hit['_source'] for hit in minimal_good_response['hits']['hits']]
+           [hit['_source'] for hit in minimal_good_response['hits']['hits']]
     assert result['inactive_docs'] == \
-           [hit['_source'] for hit in minimal_necro_good_response['hits']['hits']]
+           [hit['_source'] for hit in
+            minimal_necro_good_response['hits']['hits']]
 
 
 # end specific_items tests.

@@ -26,6 +26,7 @@ def mock_validation_failure(*args, **kwargs):
 def mock_search_items_w_no_results(*args, **kwargs):
     return {'hits': {'total': {'value': 0}}}
 
+
 def mock_search_necro_w_no_results(*args, **kwargs):
     return {'hits': {'total': {'value': 0}}}
 
