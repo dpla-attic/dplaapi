@@ -26,6 +26,9 @@ def mock_validation_failure(*args, **kwargs):
 def mock_search_items_w_no_results(*args, **kwargs):
     return {'hits': {'total': {'value': 0}}}
 
+def mock_search_necro_w_no_results(*args, **kwargs):
+    return {'hits': {'total': {'value': 0}}}
+
 
 @pytest.fixture(scope='function')
 def disable_auth():
@@ -56,6 +59,8 @@ def test_validation_errors_are_handled_correctly(monkeypatch):
 def test_thrown_http_errors_are_handled_correctly(monkeypatch):
     monkeypatch.setattr(v2_handlers, 'search_items',
                         mock_search_items_w_no_results)
+    monkeypatch.setattr(v2_handlers, 'search_necro',
+                        mock_search_necro_w_no_results)
     response = client.get('/v2/items/13283cd2bd45ef385aae962b144c7e6a')
     assert response.status_code == 404
     assert response.headers['content-type'] == ok_content_type

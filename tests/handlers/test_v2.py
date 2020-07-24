@@ -146,6 +146,8 @@ def mock_disabled_Account_get(*args, **kwargs):
 def mock_not_found_Account_get(*args, **kwargs):
     raise DoesNotExist()
 
+def mock_search_necro_w_no_results(*args, **kwargs):
+    return {'hits': {'total': {'value': 0}}}
 
 def get_request(path, querystring=None, path_params=None):
     rv = {'type': 'http', 'method': 'GET', 'path': path, 'query_string': b''}
@@ -501,6 +503,8 @@ async def test_specific_item_passes_ids(monkeypatch, mocker):
         return minimal_good_response
 
     monkeypatch.setattr(v2_handlers, 'search_items', mock_search_items)
+    monkeypatch.setattr(v2_handlers, 'search_necro',
+                        mock_search_necro_w_no_results)
     mocker.spy(v2_handlers, 'search_items')
     path_params = {'id_or_ids': '13283cd2bd45ef385aae962b144c7e6a'}
     request = get_request('/v2/items/13283cd2bd45ef385aae962b144c7e6a',
@@ -525,6 +529,8 @@ async def test_specific_item_handles_multiple_ids(monkeypatch, mocker):
 
     ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
     monkeypatch.setattr(v2_handlers, 'search_items', mock_search_items)
+    monkeypatch.setattr(v2_handlers, 'search_necro',
+                        mock_search_necro_w_no_results)
     path_params = {'id_or_ids': ids}
     request = get_request("/v2/items/%s" % ids, path_params=path_params)
 
@@ -561,6 +567,7 @@ async def test_specific_item_accepts_callback_querystring_param(monkeypatch,
         return minimal_good_response
 
     monkeypatch.setattr(v2_handlers, 'items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'search_necro', mock_search_necro_w_no_results)
     ids = '13283cd2bd45ef385aae962b144c7e6a'
     path_params = {'id_or_ids': ids}
     query_string = 'callback=f'
@@ -620,13 +627,17 @@ async def test_specific_item_calls_BackgroundTask(monkeypatch,
         return None
 
     monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'search_necro',
+                        mock_search_necro_w_no_results)
     monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
     monkeypatch.setattr(BackgroundTask, '__init__', mock_background_task)
     mocker.spy(BackgroundTask, '__init__')
 
     ok_data = {
         'count': 1,
-        'docs': [{'sourceResource': {'title': 'x'}}]
+        'inactive_count': 0,
+        'docs': [{'sourceResource': {'title': 'x'}}],
+        'inactive_docs': []
     }
 
     ids = '13283cd2bd45ef385aae962b144c7e6a'
