@@ -54,7 +54,7 @@ def items(query, necro = False):
     - query:  instance of SearchQuery or MLTQuery, which has a `query'
               property.
     """
-    base = dplaapi.ES_BASE if necro == False else dplaapi.NECRO_BASE
+    base = dplaapi.ES_BASE if necro is False else dplaapi.NECRO_BASE
 
     try:
         resp = requests.post("%s/_search" % base, json=query.query)
@@ -456,7 +456,8 @@ async def specific_item(request):
 
     else:
         if doc_count != 0:
-            rv.update(docs = [hit['_source'] for hit in result['hits']['hits']])
+            rv.update(docs = [hit['_source'] for hit in
+                              result['hits']['hits']])
 
         if inactive_doc_count != 0:
             rv.update(inactive_docs = [hit['_source'] for hit in

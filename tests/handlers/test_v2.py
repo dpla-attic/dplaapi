@@ -42,7 +42,7 @@ minimal_good_response = {
 }
 
 
-minimal_necro_good_response = {
+minimal_necro_response = {
     'took': 5,
     'timed_out': False,
     'shards': {'total': 3, 'successful': 3, 'skipped': 0, 'failed': 0},
@@ -542,7 +542,7 @@ async def test_specific_item_passes_ids_to_necropolis(monkeypatch, mocker):
         return minimal_good_response
 
     def mock_search_necro(*args):
-        return minimal_necro_good_response
+        return minimal_necro_response
 
     monkeypatch.setattr(v2_handlers, 'search_items', mock_search_items)
     monkeypatch.setattr(v2_handlers, 'search_necro', mock_search_necro)
@@ -702,7 +702,7 @@ async def test_specific_items_formats_response_metadata(monkeypatch, mocker):
         return minimal_good_response
 
     def mock_necro(*argv):
-        return minimal_necro_good_response
+        return minimal_necro_response
 
     monkeypatch.setattr(requests, 'post', mock_es_post_response_200)
     monkeypatch.setattr(v2_handlers, 'search_items', mock_items)
@@ -720,8 +720,7 @@ async def test_specific_items_formats_response_metadata(monkeypatch, mocker):
     assert result['docs'] == \
            [hit['_source'] for hit in minimal_good_response['hits']['hits']]
     assert result['inactive_docs'] == \
-           [hit['_source'] for hit in
-            minimal_necro_good_response['hits']['hits']]
+           [hit['_source'] for hit in minimal_necro_response['hits']['hits']]
 
 
 # end specific_items tests.
