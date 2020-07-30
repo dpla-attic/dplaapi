@@ -30,7 +30,7 @@ The application will be available with the following endpoints:
 * `http://localhost:8000/v2/items`
 * `http://localhost:8000/v2/items/<item ID or IDs>`
 * `http://localhost:8000/v2/items/<item ID or IDs>/mlt`
-* `http://localhost:8000/v2/items/<item ID or IDs>/necropolis`
+* `http://localhost:8000/v2/necropolis/<item ID>/`
 
 See [the API Codex](https://pro.dp.la/developers/api-codex) for usage.
 

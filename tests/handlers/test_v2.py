@@ -161,10 +161,6 @@ def mock_not_found_Account_get(*args, **kwargs):
     raise DoesNotExist()
 
 
-def mock_search_necro_w_no_results(*args, **kwargs):
-    return {'hits': {'total': {'value': 0}}}
-
-
 def get_request(path, querystring=None, path_params=None):
     rv = {'type': 'http', 'method': 'GET', 'path': path, 'query_string': b''}
     if querystring:
@@ -771,8 +767,7 @@ async def test_specific_necro_item_NotFound_for_zero_hits(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-async def test_specific_nero_item_calls_BackgroundTask(monkeypatch,
-                                                  mocker):
+async def test_specific_nero_item_calls_BackgroundTask(monkeypatch, mocker):
     """It instantiates BackgroundTask correctly"""
 
     def mock_items(*argv):

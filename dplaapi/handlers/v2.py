@@ -72,16 +72,11 @@ def items(query):
     return result
 
 
-
 def necropolis_items(query):
-    """Return "item" records from a necropolis search query
-
-    The search query could either be a typical SearchQuery or a MLTQuery
-    ("More Like This" query)
+    """Return records from a necropolis search query
 
     Arguments:
-    - query:  instance of SearchQuery or MLTQuery, which has a `query'
-              property.
+    - query:  instance of NecropolisQuery, which has a `query' property.
     """
     try:
         resp = requests.post("%s/_search" % dplaapi.NECRO_BASE,
@@ -447,46 +442,6 @@ async def multiple_items(request):
         task = None
 
     return response_object(rv, item_query, task)
-
-
-async def specific_item(request):
-
-    for k in request.query_params.items():        # list of tuples
-        if k[0] != 'callback' and k[0] != 'api_key':
-            raise HTTPException(400, 'Unrecognized parameter %s' % k[0])
-
-    id_or_ids = request.path_params['id_or_ids']
-    account = account_from_params(request.query_params)
-    goodparams = ItemsQueryType({k: v for [k, v]
-                                 in request.query_params.items()})
-    ids = id_or_ids.split(',')
-    for the_id in ids:
-        if not re.match(r'[a-f0-9]{32}$', the_id):
-            raise HTTPException(400, "Bad ID: %s" % the_id)
-    goodparams.update({'ids': ids})
-    goodparams['page_size'] = len(ids)
-
-    result = search_items(goodparams)
-    log.debug('cache size: %d' % search_cache.currsize)
-
-    if hit_count(result) == 0:
-        raise HTTPException(404)
-
-    rv = {
-        'count': hit_count(result),
-        'docs': [hit['_source'] for hit in result['hits']['hits']]
-    }
-
-    if account and not account.staff:
-        task = BackgroundTask(track,
-                              request=request,
-                              results=rv,
-                              api_key=account.key,
-                              title='Fetch items')
-    else:
-        task = None
-
-    return response_object(rv, goodparams, task)
 
 
 async def specific_item(request):
