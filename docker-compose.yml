@@ -10,6 +10,7 @@ services:
             - .:/opt/dplaapi
         environment:
             ES_BASE: http://elasticsearch:9200/dpla_alias
+            NECRO_BASE: http://elasticsearch:9200/necropolis
             APP_LOG_LEVEL: info
             POSTGRES_HOST: postgres
             POSTGRES_USER: dplaapi

@@ -17,3 +17,6 @@ build/
 dplaapi.zip
 
 .idea/
+
+derby.log
+metastore_db/

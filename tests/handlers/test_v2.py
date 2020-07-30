@@ -42,6 +42,20 @@ minimal_good_response = {
 }
 
 
+minimal_necro_response = {
+    'took': 5,
+    'timed_out': False,
+    'shards': {'total': 3, 'successful': 3, 'skipped': 0, 'failed': 0},
+    'hits': {
+        'total': {'value': 1},
+        'max_score': None,
+        'hits': [
+            {'_source': {'id': '13283cd2bd45ef385aae962b144c7e6a'}}
+        ]
+    }
+}
+
+
 es6_facets = {
     'provider.name': {
         'doc_count_error_upper_bound': 169613,
@@ -145,6 +159,10 @@ def mock_disabled_Account_get(*args, **kwargs):
 
 def mock_not_found_Account_get(*args, **kwargs):
     raise DoesNotExist()
+
+
+def mock_search_necro_w_no_results(*args, **kwargs):
+    return {'hits': {'total': {'value': 0}}}
 
 
 def get_request(path, querystring=None, path_params=None):
@@ -640,6 +658,154 @@ async def test_specific_item_calls_BackgroundTask(monkeypatch,
 
 
 # end specific_items tests.
+
+
+# begin necropolis tests
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_passes_id(monkeypatch, mocker):
+    """specific_necropolis_item() calls search_necropolis_items() with correct
+    'id' parameter"""
+
+    def mock_necropolis_item(*args):
+        return minimal_necro_response
+
+    monkeypatch.setattr(v2_handlers, 'search_necropolis_items',
+                        mock_necropolis_item)
+    mocker.spy(v2_handlers, 'search_necropolis_items')
+    path_params = {'single_id': '13283cd2bd45ef385aae962b144c7e6a'}
+    request = get_request('/v2/necropolis/13283cd2bd45ef385aae962b144c7e6a',
+                          path_params=path_params)
+
+    await v2_handlers.specific_necropolis_item(request)
+
+    v2_handlers.search_necropolis_items.assert_called_once_with(
+        {'page': 1, 'page_size': 10, 'sort_order': 'asc',
+         'id': '13283cd2bd45ef385aae962b144c7e6a'})
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_rejects_multiple_ids(monkeypatch, mocker):
+    ids = '13283cd2bd45ef385aae962b144c7e6a,00000062461c867a39cac531e13a48c1'
+    path_params = {'single_id': ids}
+    request = get_request("/v2/necropolis/%s" % ids, path_params=path_params)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_necropolis_item(request)
+        assert e.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_rejects_bad_ids_1(mocker):
+    path_params = {'single_id': 'x'}
+    request = get_request('/v2/necropolis/x', path_params=path_params)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_necropolis_item(request)
+        assert e.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_rejects_bad_ids_2(mocker):
+    id = '00000062461c867'
+    path_params = {'single_id': id}
+    request = get_request("/v2/necropolis/%s" % id, path_params=path_params)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_necropolis_item(request)
+        assert e.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_accepts_callback_query_param(monkeypatch,
+                                                                mocker):
+
+    def mock_items(arg):
+        return minimal_necro_response
+
+    monkeypatch.setattr(v2_handlers, 'necropolis_items', mock_items)
+    id = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'single_id': id}
+    query_string = 'callback=f'
+    request = get_request("/v2/necropolis/%s" % id,
+                          path_params=path_params,
+                          querystring=query_string)
+    await v2_handlers.specific_necropolis_item(request)
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_rejects_bad_querystring_param(mocker):
+
+    id = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'single_id': id}
+    query_string = 'page_size=1'
+    request = get_request("/v2/necropolis/%s" % id,
+                          path_params=path_params,
+                          querystring=query_string)
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_necropolis_item(request)
+        assert e.status_code == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures('disable_api_key_check')
+async def test_specific_necro_item_NotFound_for_zero_hits(monkeypatch, mocker):
+    """It raises a Not Found if there are no documents"""
+
+    def mock_zero_items(*args):
+        return {'hits': {'total': {'value': 0}}}
+
+    monkeypatch.setattr(v2_handlers, 'necropolis_items', mock_zero_items)
+
+    id = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'single_id': id}
+    request = get_request("/v2/necropolis/%s" % id, path_params=path_params)
+
+    with pytest.raises(HTTPException) as e:
+        await v2_handlers.specific_necropolis_item(request)
+        assert e.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_specific_nero_item_calls_BackgroundTask(monkeypatch,
+                                                  mocker):
+    """It instantiates BackgroundTask correctly"""
+
+    def mock_items(*argv):
+        return minimal_necro_response
+
+    def mock_account(*argv):
+        return models.Account(id=1, key='a1b2c3', email='x@example.org')
+
+    def mock_background_task(*args, **kwargs):
+        # __init__() has to return None, so this is not a mocker.stub()
+        return None
+
+    monkeypatch.setattr(v2_handlers, 'search_necropolis_items', mock_items)
+    monkeypatch.setattr(v2_handlers, 'account_from_params', mock_account)
+    monkeypatch.setattr(BackgroundTask, '__init__', mock_background_task)
+    mocker.spy(BackgroundTask, '__init__')
+
+    ok_data = {
+        'count': 1,
+        'docs': [{'id': '13283cd2bd45ef385aae962b144c7e6a'}]
+    }
+
+    id = '13283cd2bd45ef385aae962b144c7e6a'
+    path_params = {'single_id': id}
+    request = get_request("/v2/items/%s" % id, path_params=path_params)
+
+    await v2_handlers.specific_necropolis_item(request)
+    BackgroundTask.__init__.assert_called_once_with(
+        mocker.ANY, mocker.ANY, request=mocker.ANY, results=ok_data,
+        api_key='a1b2c3', title='Fetch necropolis item')
+
+
+# end necropolis tests
 
 
 # begin api_key and related tests

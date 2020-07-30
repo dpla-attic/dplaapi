@@ -10,9 +10,10 @@ import secrets
 from starlette.exceptions import HTTPException
 from starlette.background import BackgroundTask
 from cachetools import cached, TTLCache
-from dplaapi.types import ItemsQueryType, MLTQueryType
+from dplaapi.types import ItemsQueryType, MLTQueryType, NecropolisQueryType
 from dplaapi.queries.search_query import SearchQuery
 from dplaapi.queries.mlt_query import MLTQuery
+from dplaapi.queries.necropolis_query import NecropolisQuery
 from dplaapi.facets import facets
 from dplaapi.models import db, Account
 from dplaapi.analytics import track
@@ -23,6 +24,7 @@ log = logging.getLogger(__name__)
 ok_email_pat = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
 search_cache = TTLCache(maxsize=100, ttl=20)
 mlt_cache = TTLCache(maxsize=50, ttl=20)
+necropolis_cache = TTLCache(maxsize=50, ttl=20)
 
 
 def items_key(params):
@@ -56,6 +58,34 @@ def items(query):
     """
     try:
         resp = requests.post("%s/_search" % dplaapi.ES_BASE, json=query.query)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError:
+        if resp.status_code == 400:
+            # Assume that a Bad Request is the user's fault and we're getting
+            # this because the query doesn't parse due to a bad search term
+            # parameter.  For example "this AND AND that".
+            raise HTTPException(400, 'Invalid query')
+        else:
+            log.exception('Error querying Elasticsearch')
+            raise HTTPException(503, 'Backend search operation failed')
+    result = resp.json()
+    return result
+
+
+
+def necropolis_items(query):
+    """Return "item" records from a necropolis search query
+
+    The search query could either be a typical SearchQuery or a MLTQuery
+    ("More Like This" query)
+
+    Arguments:
+    - query:  instance of SearchQuery or MLTQuery, which has a `query'
+              property.
+    """
+    try:
+        resp = requests.post("%s/_search" % dplaapi.NECRO_BASE,
+                             json=query.query)
         resp.raise_for_status()
     except requests.exceptions.HTTPError:
         if resp.status_code == 400:
@@ -122,6 +152,18 @@ def mlt_items(params):
     mltq = MLTQuery(params)
     log.debug("Elasticsearch QUERY (Python dict):\n%s" % mltq.query)
     return items(mltq)
+
+
+@cached(necropolis_cache, key=items_key)
+def search_necropolis_items(params):
+    """Get "necropolis" records
+
+    Arguments:
+    - params: Dict of querystring or path parameters
+    """
+    nq = NecropolisQuery(params)
+    log.debug("Elasticsearch QUERY (Python dict):\n%s" % nq.query)
+    return necropolis_items(nq)
 
 
 def formatted_facets(es6_aggregations):
@@ -447,6 +489,46 @@ async def specific_item(request):
     return response_object(rv, goodparams, task)
 
 
+async def specific_item(request):
+
+    for k in request.query_params.items():        # list of tuples
+        if k[0] != 'callback' and k[0] != 'api_key':
+            raise HTTPException(400, 'Unrecognized parameter %s' % k[0])
+
+    id_or_ids = request.path_params['id_or_ids']
+    account = account_from_params(request.query_params)
+    goodparams = ItemsQueryType({k: v for [k, v]
+                                 in request.query_params.items()})
+    ids = id_or_ids.split(',')
+    for the_id in ids:
+        if not re.match(r'[a-f0-9]{32}$', the_id):
+            raise HTTPException(400, "Bad ID: %s" % the_id)
+    goodparams.update({'ids': ids})
+    goodparams['page_size'] = len(ids)
+
+    result = search_items(goodparams)
+    log.debug('cache size: %d' % search_cache.currsize)
+
+    if hit_count(result) == 0:
+        raise HTTPException(404)
+
+    rv = {
+        'count': hit_count(result),
+        'docs': [hit['_source'] for hit in result['hits']['hits']]
+    }
+
+    if account and not account.staff:
+        task = BackgroundTask(track,
+                              request=request,
+                              results=rv,
+                              api_key=account.key,
+                              title='Fetch items')
+    else:
+        task = None
+
+    return response_object(rv, goodparams, task)
+
+
 async def mlt(request):
     """'More Like This' items"""
 
@@ -478,6 +560,45 @@ async def mlt(request):
         track(request, rv, account.key, 'More-Like-This search results')
 
     return response_object(rv, goodparams)
+
+
+async def specific_necropolis_item(request):
+    """Necropolis item"""
+
+    for k in request.query_params.items():        # list of tuples
+        if k[0] != 'callback' and k[0] != 'api_key':
+            raise HTTPException(400, 'Unrecognized parameter %s' % k[0])
+
+    single_id = request.path_params['single_id']
+    account = account_from_params(request.query_params)
+    goodparams = NecropolisQueryType({k: v for [k, v]
+                                     in request.query_params.items()})
+
+    if not re.match(r'[a-f0-9]{32}$', single_id):
+        raise HTTPException(400, "Bad ID: %s" % single_id)
+    goodparams.update({'id': single_id})
+
+    result = search_necropolis_items(goodparams)
+    log.debug('cache size: %d' % necropolis_cache.currsize)
+
+    if hit_count(result) == 0:
+        raise HTTPException(404)
+
+    rv = {
+        'count': hit_count(result),
+        'docs': [hit['_source'] for hit in result['hits']['hits']]
+    }
+
+    if account and not account.staff:
+        task = BackgroundTask(track,
+                              request=request,
+                              results=rv,
+                              api_key=account.key,
+                              title='Fetch necropolis item')
+    else:
+        task = None
+
+    return response_object(rv, goodparams, task)
 
 
 async def api_key(request):
