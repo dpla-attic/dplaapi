@@ -4,6 +4,7 @@ import pytest
 @pytest.fixture(scope='function', autouse=True)
 def disable_env_vars(monkeypatch):
     monkeypatch.delenv('ES_BASE', raising=False)
+    monkeypatch.delenv('NECRO_BASE', raising=False)
     monkeypatch.delenv('APP_LOG_LEVEL', raising=False)
     monkeypatch.delenv('DISABLE_AUTH', raising=False)
     monkeypatch.delenv('EMAIL_FROM', raising=False)

@@ -470,6 +470,12 @@ mlt_params = {
     'api_key': items_params['api_key']
 }
 
+necropolis_params = {
+    'fields': items_params['fields'],
+    'callback': items_params['callback'],
+    'api_key': items_params['api_key']
+}
+
 
 class BaseQueryType(dict):
     params_specification = {}  # To be overridden
@@ -536,3 +542,10 @@ class MLTQueryType(BaseQueryType):
 
     def __init__(self, *args):
         super(MLTQueryType, self).__init__(*args)
+
+
+class NecropolisQueryType(BaseQueryType):
+    params_specification = necropolis_params
+
+    def __init__(self, *args):
+        super(NecropolisQueryType, self).__init__(*args)

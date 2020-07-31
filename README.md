@@ -30,6 +30,7 @@ The application will be available with the following endpoints:
 * `http://localhost:8000/v2/items`
 * `http://localhost:8000/v2/items/<item ID or IDs>`
 * `http://localhost:8000/v2/items/<item ID or IDs>/mlt`
+* `http://localhost:8000/v2/necropolis/<item ID>/`
 
 See [the API Codex](https://pro.dp.la/developers/api-codex) for usage.
 
@@ -48,7 +49,10 @@ See [Development.md](./Development.md) for more ways to run the application.
 The application recognizes the following environment variables.
 
 * `ES_BASE` (required!):  The base URL of the Elasticsearch index, including the
-  path to the index
+  path to the index.
+* `NECRO_BASE` (required!):  The base URL of the Elasticsearch index that holds
+  tombstones for items no longer in DPLA under their old ids.  Include the
+  path to the index.
 * `APP_LOG_LEVEL`: The logging level of the `dplaapi` application; as distinct
   from the middleware, e.g. `uvicorn`.  ("debug" | "info" | "warning" |
   "error" | "critical"). Defaults to "debug".

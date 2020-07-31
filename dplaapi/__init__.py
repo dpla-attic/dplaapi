@@ -36,6 +36,11 @@ if not ES_BASE:
     log.warning('ES_BASE env var is not defined. Elasticsearch queries will '
                 'not work!')
 
+NECRO_BASE = os.getenv('NECRO_BASE')
+if not NECRO_BASE:
+    log.warning('NECRO_BASE env var is not defined. Elasticsearch queries to '
+                'necropolis will not work!')
+
 
 def http_exception_handler(request, exc):
     # We assume that an HTTPException, which has been raised by our code,
