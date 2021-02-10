@@ -17,7 +17,7 @@ facets = {
     'provider.@id': ('provider.@id', 'terms'),
     'provider.name': ('provider.name.not_analyzed', 'terms'),
     'rights': ('rights', 'terms'),
-    'rightsFacet': ('rightsFacet', 'terms'),
+    'rightsCategory': ('rightsCategory', 'terms'),
     'sourceResource.collection.title': ('sourceResource.collection.title'
                                         '.not_analyzed',
                                         'terms'),
