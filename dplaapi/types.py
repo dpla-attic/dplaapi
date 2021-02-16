@@ -456,7 +456,13 @@ items_params = {
             min_length=2,
             max_length=200,
             pattern=url_match_pat,
-            allow_null=True)
+            allow_null=True),
+    'rightsCategory': apistar.validators.String(
+        title='Clustering of Standardized Rights Statement (edm:Rights)',
+        description='The value given here describes "common usage" of a group of standardized rights URIs.',
+        min_length=2,
+        max_length=200,
+        allow_null=True)
 }
 
 mlt_params = {
