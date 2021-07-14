@@ -45,6 +45,7 @@ field_or_subfield = {
                                     '.not_analyzed',
     'sourceResource.subject.@id': 'sourceResource.subject.@id',
     'sourceResource.subject.name': 'sourceResource.subject.name.not_analyzed',
+    'sourceResource.subject.scheme': 'sourceResource.subject.scheme.not_analyzed',
     'sourceResource.temporal.begin': 'sourceResource.temporal.begin'
                                      '.not_analyzed',
     'sourceResource.temporal.end': 'sourceResource.temporal.end.not_analyzed',
