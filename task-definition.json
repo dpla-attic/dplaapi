@@ -51,7 +51,7 @@
             "secrets": [
                {
                     "name": "ES_BASE",
-                    "valueFrom": " arn:aws:secretsmanager:us-east-1:283408157088:secret:dplaapi_prod-VQRT6F:ES_BASE::"
+                    "valueFrom": "arn:aws:secretsmanager:us-east-1:283408157088:secret:dplaapi_prod-VQRT6F:ES_BASE::"
                 },
                 {
                     "name": "NECRO_BASE",
