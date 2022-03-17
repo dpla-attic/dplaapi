@@ -45,6 +45,7 @@ fields_to_query = {
     'provider.name': '1',
     'rights': None,
     'rightsCategory': None,
+    'tags': None,
     'admin.contributingInstitution': None,
     'sourceResource.collection': None,
     'sourceResource.collection.@id': None,
