@@ -457,12 +457,21 @@ items_params = {
             max_length=200,
             pattern=url_match_pat,
             allow_null=True),
+<<<<<<< HEAD
     'rightsCategory': apistar.validators.String(
         title='Clustering of Standardized Rights Statement (edm:Rights)',
         description='The value given here describes "common usage" of a group of standardized rights URIs.',
         min_length=2,
         max_length=200,
         allow_null=True)
+=======
+    'tags': apistar.validators.String(
+            title='Tags',
+            description='Tags used for curation and collection building.',
+            min_length=2,
+            max_length=200,
+            allow_null=True)
+>>>>>>> 598b2d0 (allow tags param)
 }
 
 mlt_params = {

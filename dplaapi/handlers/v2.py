@@ -103,7 +103,7 @@ def search_items(params):
     - params: Dict of querystring or path parameters
     """
     sq = SearchQuery(params)
-    log.debug("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
+    log.info("Elasticsearch QUERY (Python dict):\n%s" % sq.query)
     return items(sq)
 
 
