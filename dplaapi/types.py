@@ -462,7 +462,13 @@ items_params = {
         description='The value given here describes "common usage" of a group of standardized rights URIs.',
         min_length=2,
         max_length=200,
-        allow_null=True)
+        allow_null=True),
+    'tags': apistar.validators.String(
+            title='Tags',
+            description='Tags used for curation and collection building.',
+            min_length=2,
+            max_length=200,
+            allow_null=True)
 }
 
 mlt_params = {
