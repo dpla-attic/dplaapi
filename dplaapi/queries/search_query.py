@@ -32,6 +32,8 @@ query_skel_specific_ids = {
 #
 fields_to_query = {
     'dataProvider': '1',
+    'dataProvider.name': '1',
+    'dataProvider.@id': None,
     'hasView': None,
     'hasView.@id': None,
     'hasView.format': None,
@@ -85,7 +87,8 @@ fields_to_query = {
 # "field.*" ... or else Elasticsearch won't query its subfields.
 object_wildcards = {
     'sourceResource.spatial': 'sourceResource.spatial.*',
-    'provider': 'provider.*'
+    'provider': 'provider.*',
+    'dataProvider': 'dataProvider.*'
 }
 
 temporal_search_field_pat = re.compile(r'(?P<field>.*)?\.(?P<modifier>.*)$')
