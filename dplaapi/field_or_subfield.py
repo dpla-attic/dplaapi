@@ -12,7 +12,10 @@ for the purpose of constructing "sort" and "fields" clauses in queries.
 # Dictionary of {field: actual field to use} for a sort or an
 # "exact_field_match" query
 field_or_subfield = {
-    'dataProvider': 'dataProvider.not_analyzed',
+    'dataProvider': 'dataProvider.name.not_analyzed',
+    'dataProvider.name': 'dataProvider.name.not_analyzed',
+    'dataProvider.@id': 'dataProvider.@id',
+    'dataProvider.exactMatch': 'dataProvider.exactMatch.not_analyzed',
     '@id': '@id',
     'hasView.@id': 'hasView.@id',
     'hasView.format': 'hasView.format',

@@ -8,7 +8,9 @@ Data about facets
 facets = {
     'admin.contributingInstitution': ('admin.contributingInstitution',
                                       'terms'),
-    'dataProvider': ('dataProvider.not_analyzed', 'terms'),
+    'dataProvider': ('dataProvider.name.not_analyzed', 'terms'),
+    'dataProvider.@id': ('dataProvider.@id', 'terms'),
+    'dataProvider.name': ('dataProvider.name.not_analyzed', 'terms'),
     'hasView.@id': ('hasView.@id', 'terms'),
     'hasView.format': ('hasView.format', 'terms'),
     'intermediateProvider': ('intermediateProvider.not_analyzed', 'terms'),
