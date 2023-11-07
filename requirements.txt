@@ -12,7 +12,7 @@ gunicorn==19.9.0
 h11==0.8.1
 httptools==0.0.13
 idna==2.8
-Jinja2==2.11.0
+Jinja2==2.11.3
 jmespath==0.9.4
 MarkupSafe==1.1.1
 peewee==3.6.4
